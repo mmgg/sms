@@ -1,6 +1,7 @@
 package com.clwu.sms.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
@@ -8,16 +9,13 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import javax.persistence.*;
 import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
 import java.time.LocalDateTime;
 
 @TableName("t_user")
 @Data
 public class User {
-    @Id
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
@@ -25,13 +23,10 @@ public class User {
 
     private Integer type;
 
-    @Column(name = "create_time")
     private LocalDateTime createTime;
 
-    @Column(name = "update_time")
     private LocalDateTime updateTime;
 
-    @Column(name = "update_user")
     private Long updateUser;
 
     private Integer status;
@@ -41,6 +36,8 @@ public class User {
     private String phone;
 
     private Long tid;
+
+    /** 密码，不持久化到数据库 */
+    @TableField(exist = false)
+    private String password;
 }
-
-

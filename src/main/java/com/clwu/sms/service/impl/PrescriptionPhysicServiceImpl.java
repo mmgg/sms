@@ -2,21 +2,21 @@ package com.clwu.sms.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
-import com.clwu.sms.entity.ParchaseDetail;
-import com.clwu.sms.entity.PerscriptionPhysic;
+import com.clwu.sms.entity.PurchaseDetail;
+import com.clwu.sms.entity.PrescriptionPhysic;
 import com.clwu.sms.entity.Physic;
 import com.clwu.sms.entity.SellingPrice;
 import com.clwu.sms.enums.StatusEnum;
-import com.clwu.sms.mapper.PrescriptionPyhsicMapper;
-import com.clwu.sms.service.ParchaseDetailService;
-import com.clwu.sms.service.PerscriptionPhysicService;
+import com.clwu.sms.mapper.PrescriptionPhysicMapper;
+import com.clwu.sms.service.PurchaseDetailService;
+import com.clwu.sms.service.PrescriptionPhysicService;
 import com.clwu.sms.service.PhysicService;
 import com.clwu.sms.service.SellingPricingService;
-import com.clwu.sms.vo.PerscriptionPhysicDetailVo;
+import com.clwu.sms.vo.PrescriptionPhysicDetailVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import javax.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -26,15 +26,16 @@ import java.util.List;
  * @Description:
  **/
 @Service
-public class PrescriptionPhysicServiceImpl implements PerscriptionPhysicService {
+public class PrescriptionPhysicServiceImpl implements PrescriptionPhysicService {
     @Autowired
-    private PrescriptionPyhsicMapper prescriptionPyhsicMapper;
+    private PrescriptionPhysicMapper prescriptionPyhsicMapper;
     @Autowired
     private SellingPricingService sellingPricingService;
     @Autowired
     private PhysicService physicService;
     @Autowired
-    private ParchaseDetailService parchaseDetailService;
+    private PurchaseDetailService parchaseDetailService;
+
     /**
      * 增加处方药品（需要同步更新库存表）
      *
@@ -42,7 +43,7 @@ public class PrescriptionPhysicServiceImpl implements PerscriptionPhysicService 
      */
     @Override
     @Transactional
-    public void addPerscriptionPhysic(PerscriptionPhysic prescriptionPhysic) {
+    public void addPrescriptionPhysic(PrescriptionPhysic prescriptionPhysic) {
         // 在处方明细表中插入一条记录
         prescriptionPyhsicMapper.insert(prescriptionPhysic);
         updConstAndIncomeById(prescriptionPhysic.getId());
@@ -54,9 +55,9 @@ public class PrescriptionPhysicServiceImpl implements PerscriptionPhysicService 
      * @param id
      */
     @Override
-    public void delPerscriptionPhysic(Long id) {
-        PerscriptionPhysic PrescriptionPhysic = findPrescriptionPhysicById(id);
-        UpdateWrapper<PerscriptionPhysic> updateWrapper = new UpdateWrapper<>();
+    public void delPrescriptionPhysic(Long id) {
+        PrescriptionPhysic PrescriptionPhysic = findPrescriptionPhysicById(id);
+        UpdateWrapper<PrescriptionPhysic> updateWrapper = new UpdateWrapper<>();
         updateWrapper.eq("id", id);
         updateWrapper.set("status", StatusEnum.US_DISABLE.getCode());
         prescriptionPyhsicMapper.update(null, updateWrapper);
@@ -68,7 +69,7 @@ public class PrescriptionPhysicServiceImpl implements PerscriptionPhysicService 
      * @param prescriptionPhysic
      */
     @Override
-    public void updPerscriptionPhysic(PerscriptionPhysic prescriptionPhysic) {
+    public void updPrescriptionPhysic(PrescriptionPhysic prescriptionPhysic) {
         if (null == prescriptionPhysic || prescriptionPhysic.getId() <= 0L) {
             return;
         }
@@ -82,7 +83,7 @@ public class PrescriptionPhysicServiceImpl implements PerscriptionPhysicService 
      * @return
      */
     @Override
-    public PerscriptionPhysic findPrescriptionPhysicById(Long id) {
+    public PrescriptionPhysic findPrescriptionPhysicById(Long id) {
         return prescriptionPyhsicMapper.selectById(id);
     }
 
@@ -94,8 +95,8 @@ public class PrescriptionPhysicServiceImpl implements PerscriptionPhysicService 
      * @return                  处方下对应药物
      */
     @Override
-    public List<PerscriptionPhysic> findPrescriptionPhysic(Long perscriptionId, int status) {
-        QueryWrapper<PerscriptionPhysic> queryWrapper = new QueryWrapper<>();
+    public List<PrescriptionPhysic> findPrescriptionPhysic(Long perscriptionId, int status) {
+        QueryWrapper<PrescriptionPhysic> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("prescription", perscriptionId);
         queryWrapper.eq("status", status);
         return prescriptionPyhsicMapper.selectList(queryWrapper);
@@ -106,10 +107,10 @@ public class PrescriptionPhysicServiceImpl implements PerscriptionPhysicService 
      * @param id
      * @return
      */
-    public PerscriptionPhysicDetailVo findPerscriptionPhysicDetailById(Long id) {
-        PerscriptionPhysicDetailVo perscriptionPhysicDetailVo = new PerscriptionPhysicDetailVo();
+    public PrescriptionPhysicDetailVo findPrescriptionPhysicDetailById(Long id) {
+        PrescriptionPhysicDetailVo perscriptionPhysicDetailVo = new PrescriptionPhysicDetailVo();
         // 查出处方中某一个药物的信息
-        PerscriptionPhysic perscriptionPhysic = findPrescriptionPhysicById(id);
+        PrescriptionPhysic perscriptionPhysic = findPrescriptionPhysicById(id);
         if (perscriptionPhysic.getStatus() != StatusEnum.US_ENABLED.getCode()) {
             return null;
         }
@@ -117,16 +118,16 @@ public class PrescriptionPhysicServiceImpl implements PerscriptionPhysicService 
         Physic physic = physicService.findPhysicById(perscriptionPhysic.getPhysic());
         // 卖出价格信息
         SellingPrice sellingPrice = sellingPricingService.findSellingPriceById(perscriptionPhysic.getSelling());
-        List<ParchaseDetail> parchaseDetailList = parchaseDetailService.findParchaseDetailByPPid(id,
+        List<PurchaseDetail> parchaseDetailList = parchaseDetailService.findPurchaseDetailByPPid(id,
                 StatusEnum.US_OCCUPY.getCode());
         BigDecimal sum = new BigDecimal("0.0");
         // 计算成本信息
-        for(ParchaseDetail parchaseDetail: parchaseDetailList) {
+        for(PurchaseDetail parchaseDetail: parchaseDetailList) {
             sum = sum.add(parchaseDetail.getBuyingPrice());
         }
         perscriptionPhysicDetailVo.setPhysic(physic);
         perscriptionPhysicDetailVo.setNum(parchaseDetailList.size());
-        perscriptionPhysicDetailVo.setParchaseDetails(parchaseDetailList);
+        perscriptionPhysicDetailVo.setPurchaseDetails(parchaseDetailList);
         perscriptionPhysicDetailVo.setSellingPrice(sellingPrice);
         return perscriptionPhysicDetailVo;
     }
@@ -138,26 +139,26 @@ public class PrescriptionPhysicServiceImpl implements PerscriptionPhysicService 
     public void updConstAndIncomeById(Long id) {
         BigDecimal cost = calcCostByid(id);
         BigDecimal income = calcIncomeByid(id);
-        UpdateWrapper<PerscriptionPhysic> updateWrapper = new UpdateWrapper<>();
+        UpdateWrapper<PrescriptionPhysic> updateWrapper = new UpdateWrapper<>();
         updateWrapper.eq("id", id);
         updateWrapper.set("cost", cost);
         updateWrapper.set("income", income);
         prescriptionPyhsicMapper.update(null, updateWrapper);
     }
     public BigDecimal calcCostByid(Long id) {
-        PerscriptionPhysic perscriptionPhysic = findPrescriptionPhysicById(id);
-        List<ParchaseDetail> parchaseDetailList = parchaseDetailService.findParchaseDetailByPPid(id,
+        PrescriptionPhysic perscriptionPhysic = findPrescriptionPhysicById(id);
+        List<PurchaseDetail> parchaseDetailList = parchaseDetailService.findPurchaseDetailByPPid(id,
                 StatusEnum.US_OCCUPY.getCode());
         BigDecimal sum = new BigDecimal("0.0");
         // 计算成本信息
-        for(ParchaseDetail parchaseDetail: parchaseDetailList) {
+        for(PurchaseDetail parchaseDetail: parchaseDetailList) {
             sum = sum.add(parchaseDetail.getBuyingPrice());
         }
         return sum;
     }
 
     public BigDecimal calcIncomeByid(Long id) {
-        PerscriptionPhysic perscriptionPhysic = findPrescriptionPhysicById(id);
+        PrescriptionPhysic perscriptionPhysic = findPrescriptionPhysicById(id);
         SellingPrice sellingPrice = sellingPricingService.findSellingPriceById(perscriptionPhysic.getSelling());
         return sellingPrice.getPrice().multiply(new BigDecimal(perscriptionPhysic.getNum()));
     }

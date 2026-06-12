@@ -8,18 +8,15 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import javax.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-@Entity
 @TableName("t_selling_price")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class SellingPrice {
-    @Id
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
@@ -29,13 +26,10 @@ public class SellingPrice {
 
     private Integer status;
 
-    @Column(name = "create_time")
     private LocalDateTime createTime;
 
-    @Column(name = "update_time")
     private LocalDateTime updateTime;
 
-    @Column(name = "update_user")
     private Long updateUser;
 }
 

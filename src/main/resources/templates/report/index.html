@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>报表统计</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f0f2f5;display:flex;min-height:100vh}
+.sidebar{width:220px;background:#001529;color:#fff;position:fixed;top:0;left:0;bottom:0;display:flex;flex-direction:column}
+.sidebar .logo{padding:20px;font-size:18px;font-weight:600;border-bottom:1px solid rgba(255,255,255,0.1);text-align:center}.sidebar .logo span{color:#1890ff}
+.sidebar nav{flex:1;padding:12px 0}.sidebar nav a{display:block;padding:14px 24px;color:rgba(255,255,255,0.65);text-decoration:none;font-size:14px;transition:all 0.2s}
+.sidebar nav a:hover,.sidebar nav a.active{color:#fff;background:rgba(255,255,255,0.08)}
+.sidebar .logout{padding:16px 20px;border-top:1px solid rgba(255,255,255,0.1)}.sidebar .logout a{color:rgba(255,255,255,0.45);text-decoration:none;font-size:13px}
+.main{margin-left:220px;flex:1;padding:24px}
+.page-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}.page-header h2{font-size:20px;color:#333}
+.btn{padding:8px 20px;border-radius:6px;border:none;cursor:pointer;font-size:14px;transition:opacity 0.2s}.btn:hover{opacity:0.85}
+.btn-primary{background:#1890ff;color:#fff}.btn-success{background:#52c41a;color:#fff}.btn-sm{padding:4px 12px;font-size:12px}
+.tab-bar{background:#fff;border-radius:8px 8px 0 0;padding:0 8px;display:flex;border-bottom:1px solid #e8e8e8;box-shadow:0 1px 4px rgba(0,0,0,0.05)}
+.tab-bar .tab{padding:14px 24px;font-size:14px;color:#666;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;user-select:none}
+.tab-bar .tab:hover{color:#1890ff}.tab-bar .tab.active{color:#1890ff;border-bottom-color:#1890ff;font-weight:600}
+.sub-tab-bar{display:flex;gap:0;margin:12px 0}.sub-tab-bar .stab{padding:6px 18px;font-size:13px;color:#666;cursor:pointer;border-radius:4px;transition:all 0.2s;user-select:none}
+.sub-tab-bar .stab:hover{background:#e6f7ff;color:#1890ff}.sub-tab-bar .stab.active{background:#e6f7ff;color:#1890ff;font-weight:600}
+.report-content{display:none}.report-content.show{display:block}
+.chart-row{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px}
+.chart-card{background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,0.05);padding:16px;flex:1;min-width:360px}
+.chart-card h4{font-size:14px;color:#333;margin-bottom:12px}
+.chart-card canvas{display:block;margin:0 auto}
+.table-card{background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,0.05);overflow:hidden;margin-top:12px}
+.table-card .tc-header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #f0f0f0}
+.table-card .tc-header h4{font-size:14px;color:#333}
+table{width:100%;border-collapse:collapse}thead{background:#fafafa}
+th{padding:10px 14px;text-align:left;font-weight:600;font-size:13px;color:#666;border-bottom:1px solid #f0f0f0}
+td{padding:10px 14px;font-size:13px;color:#333;border-bottom:1px solid #f0f0f0}tr:hover td{background:#f5f7fa}
+.empty td{text-align:center;color:#999;padding:40px}
+.toast{position:fixed;top:20px;right:20px;padding:12px 24px;border-radius:6px;color:#fff;font-size:14px;z-index:2000;display:none;animation:slideIn 0.3s}
+.toast.success{background:#52c41a}.toast.error{background:#ff4d4f}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+.search-bar{background:#fff;padding:16px;border-radius:8px;margin-bottom:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;box-shadow:0 1px 4px rgba(0,0,0,0.05)}.search-bar label{font-size:13px;color:#666;margin-bottom:4px;display:block}.search-bar input{padding:8px 12px;border:1px solid #d9d9d9;border-radius:6px;font-size:13px;width:160px}.search-bar input:focus{outline:none;border-color:#1890ff;box-shadow:0 0 0 2px rgba(24,144,255,0.1)}
+</style></head>
+<body>
+<aside class="sidebar"><div class="logo">诊所<span>管理</span></div><nav>
+<a href="/dashboard">📊 仪表盘</a><a href="/patients">👤 患者管理</a><a href="/physic">💊 药品/耗材</a>
+<a href="/purchase">📦 进货管理</a><a href="/prescription">📋 处方管理</a><a href="/inventory">🏪 库存查询</a><a href="/selling-price">💰 售价管理</a>
+<a href="/selling-price">💰 售价管理</a><a href="/report" class="active">📈 报表统计</a><a href="/user">👥 用户管理</a>
+</nav>
+<div class="logout"><a href="#" onclick="logout()">🚪 退出登录</a></div>
+</aside>
+
+<div class="main">
+<div class="page-header"><h2>📈 报表统计</h2></div>
+
+<!-- Tabs -->
+<div class="search-bar">
+<div><label>开始时间</label><input id="sStartTime" type="date"></div>
+<div><label>结束时间</label><input id="sEndTime" type="date"></div>
+<div style="display:flex;gap:8px;align-items:flex-end">
+<button class="btn btn-primary" onclick="searchReports()">🔍 搜索</button>
+<button class="btn" style="background:#fff;border:1px solid #d9d9d9" onclick="resetSearch()">↺ 重置</button>
+</div>
+</div>
+<div class="tab-bar">
+<div class="tab active" onclick="switchTab('profit')">利润</div>
+<div class="tab" onclick="switchTab('sales')">销量</div>
+<div class="tab" onclick="switchTab('inventory')">库存</div>
+</div>
+
+<!-- Sub-tabs for Profit -->
+<div class="sub-tab-bar" id="profitSubTabs">
+<span class="stab active" onclick="switchProfitSub('drug')">药品维度</span>
+<span class="stab" onclick="switchProfitSub('rx')">处方维度</span>
+</div>
+
+<!-- ===== PROFIT: DRUG ===== -->
+<div class="report-content show" id="rProfitDrug">
+<div class="chart-row"><div class="chart-card">
+<h4>药品利润分布</h4><canvas id="profitDrugChart" width="360" height="320"></canvas>
+</div></div>
+<div class="table-card">
+<div class="tc-header"><h4>药品利润明细</h4>
+<button class="btn btn-sm btn-success" onclick="down('profitByDrug')">📥 导出 Excel</button>
+</div>
+<table><thead><tr><th>药品名称</th><th>类型</th><th>销量</th><th>利润(元)</th></tr></thead>
+<tbody id="profitDrugTable"><tr class="empty"><td colspan="4">加载中...</td></tr></tbody></table>
+</div></div>
+
+<!-- ===== PROFIT: PRESCRIPTION ===== -->
+<div class="report-content" id="rProfitRx">
+<div class="chart-row"><div class="chart-card">
+<h4>处方利润分布</h4><canvas id="profitRxChart" width="360" height="320"></canvas>
+</div></div>
+<div class="table-card">
+<div class="tc-header"><h4>处方利润明细</h4>
+<button class="btn btn-sm btn-success" onclick="down('profitByPrescription')">📥 导出 Excel</button>
+</div>
+<table><thead><tr><th>处方ID</th><th>患者</th><th>药品数</th><th>利润(元)</th><th>创建时间</th></tr></thead>
+<tbody id="profitRxTable"><tr class="empty"><td colspan="5">加载中...</td></tr></tbody></table>
+</div></div>
+
+<!-- ===== SALES ===== -->
+<div class="report-content" id="rSales">
+<div class="chart-row">
+<div class="chart-card"><h4>药品销量分布</h4><canvas id="salesDrugChart" width="360" height="320"></canvas></div>
+<div class="chart-card"><h4>类型销量分布</h4><canvas id="salesTypeChart" width="360" height="320"></canvas></div>
+</div>
+<div class="table-card">
+<div class="tc-header"><h4>药品销量明细</h4>
+<button class="btn btn-sm btn-success" onclick="down('salesByDrug')">📥 导出 Excel</button>
+</div>
+<table><thead><tr><th>药品名称</th><th>类型</th><th>销量</th></tr></thead>
+<tbody id="salesTable"><tr class="empty"><td colspan="3">加载中...</td></tr></tbody></table>
+</div></div>
+
+<!-- ===== INVENTORY ===== -->
+<div class="report-content" id="rInventory">
+<div class="chart-row">
+<div class="chart-card"><h4>药品分布</h4><canvas id="invDrugChart" width="360" height="320"></canvas></div>
+<div class="chart-card"><h4>按状态分布</h4><canvas id="invStatusChart" width="360" height="320"></canvas></div>
+</div>
+<div class="table-card">
+<div class="tc-header"><h4>库存明细</h4>
+<button class="btn btn-sm btn-success" onclick="down('inventory')">📥 导出 Excel</button>
+</div>
+<table><thead><tr><th>药品名称</th><th>可用库存</th><th>已占用</th><th>合计</th></tr></thead>
+<tbody id="inventoryTable"><tr class="empty"><td colspan="4">加载中...</td></tr></tbody></table>
+</div></div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script>
+function sToast(m,t){var e=document.getElementById('toast');e.textContent=m;e.className='toast '+t;e.style.display='block';setTimeout(function(){e.style.display='none'},2500);}
+function logout(){fetch('/api/logout',{method:'POST'}).then(function(){window.location.href='/login';}).catch(function(){window.location.href='/login';});}
+var COLORS=['#1890ff','#52c41a','#faad14','#ff4d4f','#722ed1','#13c2c2','#eb2f96','#fa8c16','#2f54eb','#a0d911','#f5222d','#1d39c4','#d4b106','#597ef7','#95de64'];
+
+function switchTab(name){
+  document.querySelectorAll('.tab-bar .tab').forEach(function(t){t.classList.remove('active');});
+  document.querySelector('.tab-bar .tab[onclick*="'+name+'"]').classList.add('active');
+  var subs=document.getElementById('profitSubTabs');
+  if(name==='profit'){subs.style.display='flex';}else{subs.style.display='none';}
+  document.querySelectorAll('.report-content').forEach(function(c){c.classList.remove('show');});
+  if(name==='profit'){
+    var activeSub=document.querySelector('#profitSubTabs .stab.active');
+    document.getElementById('rProfit'+(activeSub?activeSub.getAttribute('data-target')||'Drug':'Drug')).classList.add('show');
+  }else{document.getElementById('r'+name.charAt(0).toUpperCase()+name.slice(1)).classList.add('show');}
+}
+
+function switchProfitSub(sub){
+  document.querySelectorAll('#profitSubTabs .stab').forEach(function(t){t.classList.remove('active');t.removeAttribute('data-target');});
+  document.querySelectorAll('.report-content').forEach(function(c){c.classList.remove('show');});
+  if(sub==='drug'){
+    document.querySelector('#profitSubTabs .stab:first-child').classList.add('active');
+    document.getElementById('rProfitDrug').classList.add('show');
+  }else{
+    document.querySelector('#profitSubTabs .stab:last-child').classList.add('active');
+    document.getElementById('rProfitRx').classList.add('show');
+  }
+}
+
+function drawPie(id,data,labelKey,valueKey,labelFn){
+  var canvas=document.getElementById(id);
+  if(!canvas)return;
+  var ctx=canvas.getContext('2d');
+  var w=canvas.width,h=canvas.height;
+  ctx.clearRect(0,0,w,h);
+  if(!data||data.length===0){
+    ctx.fillStyle='#999';ctx.font='14px sans-serif';ctx.textAlign='center';ctx.fillText('暂无数据',w/2,h/2);return;
+  }
+  var total=data.reduce(function(s,d){var v=parseFloat(d[valueKey])||0;return s+v;},0);
+  if(total===0){ctx.fillStyle='#999';ctx.font='14px sans-serif';ctx.textAlign='center';ctx.fillText('暂无数据',w/2,h/2);return;}
+  var cx=w/2-20,cy=h/2-20,r=Math.min(cx,cy)-30;
+  var startAngle=-Math.PI/2;
+  data.forEach(function(d,i){
+    var val=parseFloat(d[valueKey])||0;
+    var sliceAngle=(val/total)*2*Math.PI;
+    var color=COLORS[i%COLORS.length];
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,startAngle,startAngle+sliceAngle);ctx.closePath();
+    ctx.fillStyle=color;ctx.fill();
+    var midAngle=startAngle+sliceAngle/2;
+    var lx=cx+(r*0.6)*Math.cos(midAngle),ly=cy+(r*0.6)*Math.sin(midAngle);
+    var pct=((val/total)*100).toFixed(1);
+    if(pct>5){ctx.fillStyle='#fff';ctx.font='bold 11px sans-serif';ctx.textAlign='center';ctx.fillText(pct+'%',lx,ly+4);}
+    startAngle+=sliceAngle;
+  });
+  // Legend
+  var lx=20,ly=h-25-data.length*18;
+  ctx.font='12px sans-serif';ctx.textAlign='left';
+  data.forEach(function(d,i){
+    var color=COLORS[i%COLORS.length];
+    var yy=ly+i*18;
+    ctx.fillStyle=color;ctx.fillRect(lx,yy,10,10);
+    ctx.fillStyle='#555';var lb=labelFn?labelFn(d):(d[labelKey]||'');
+    ctx.fillText(lb+': '+(parseFloat(d[valueKey])||0).toFixed(1),lx+16,yy+9);
+  });
+}
+
+function ajaxFetch(url,opts){
+  opts=opts||{};opts.credentials=opts.credentials||'same-origin';opts.headers=opts.headers||{};
+  opts.headers['X-Requested-With']='XMLHttpRequest';
+  return fetch(url,opts).then(function(r){if(r.status===401){window.location.href='/login';throw new Error('未登录');}return r;});
+}
+
+function down(type){window.location.href='/api/report/export?type='+type;}
+
+function h(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// === LOAD PROFIT ===
+function loadProfitDrug(){
+  document.getElementById('profitDrugTable').innerHTML='<tr class="empty"><td colspan="4">加载中...</td></tr>';
+  ajaxFetch('/api/report/profit-by-drug').then(function(r){return r.json();}).then(function(d){
+    var list=d||[];
+    drawPie('profitDrugChart',list,'physicName','profit',function(v){return v.physicName;});
+    var t=document.getElementById('profitDrugTable');
+    if(!list.length){t.innerHTML='<tr class="empty"><td colspan="4">暂无数据</td></tr>';return;}
+    t.innerHTML=list.map(function(v){return '<tr><td>'+h(v.physicName)+'</td><td>'+v.typeName+'</td><td>'+v.quantity+'</td><td>'+(v.profit||0).toFixed(2)+'</td></tr>';}).join('');
+  }).catch(function(){document.getElementById('profitDrugTable').innerHTML='<tr class="empty"><td colspan="4">加载失败</td></tr>';});
+}
+
+function loadProfitRx(){
+  document.getElementById('profitRxTable').innerHTML='<tr class="empty"><td colspan="5">加载中...</td></tr>';
+  ajaxFetch('/api/report/profit-by-prescription').then(function(r){return r.json();}).then(function(d){
+    var list=d||[];
+    drawPie('profitRxChart',list,'patientName','profit',function(v){return '#'+v.prescriptionId+' '+v.patientName;});
+    var t=document.getElementById('profitRxTable');
+    if(!list.length){t.innerHTML='<tr class="empty"><td colspan="5">暂无数据</td></tr>';return;}
+    t.innerHTML=list.map(function(v){return '<tr><td>#'+v.prescriptionId+'</td><td>'+h(v.patientName)+'</td><td>'+v.itemCount+'</td><td>'+(v.profit||0).toFixed(2)+'</td><td>'+(v.createTime||'-')+'</td></tr>';}).join('');
+  }).catch(function(){document.getElementById('profitRxTable').innerHTML='<tr class="empty"><td colspan="5">加载失败</td></tr>';});
+}
+
+// === LOAD SALES ===
+function loadSales(){
+  document.getElementById('salesTable').innerHTML='<tr class="empty"><td colspan="3">加载中...</td></tr>';
+  Promise.all([
+    ajaxFetch('/api/report/sales-by-drug').then(function(r){return r.json();}),
+    ajaxFetch('/api/report/sales-by-type').then(function(r){return r.json();})
+  ]).then(function(results){
+    var drugData=results[0]||[],typeData=results[1]||[];
+    drawPie('salesDrugChart',drugData,'physicName','quantity',function(v){return v.physicName;});
+    drawPie('salesTypeChart',typeData,'typeName','quantity',function(v){return v.typeName;});
+    var t=document.getElementById('salesTable');
+    if(!drugData.length){t.innerHTML='<tr class="empty"><td colspan="3">暂无数据</td></tr>';return;}
+    t.innerHTML=drugData.map(function(v){return '<tr><td>'+h(v.physicName)+'</td><td>'+v.typeName+'</td><td>'+v.quantity+'</td></tr>';}).join('');
+  }).catch(function(){document.getElementById('salesTable').innerHTML='<tr class="empty"><td colspan="3">加载失败</td></tr>';});
+}
+
+// === LOAD INVENTORY ===
+function loadInventory(){
+  document.getElementById('inventoryTable').innerHTML='<tr class="empty"><td colspan="4">加载中...</td></tr>';
+  Promise.all([
+    ajaxFetch('/api/report/inventory-by-drug').then(function(r){return r.json();}),
+    ajaxFetch('/api/report/inventory-status').then(function(r){return r.json();})
+  ]).then(function(results){
+    var drugData=results[0]||[],statusData=results[1]||[];
+    drugData.forEach(function(v){v.total=(parseInt(v.availableQty)||0)+(parseInt(v.occupiedQty)||0);});
+    drawPie('invDrugChart',drugData,'physicName','total',function(v){return v.physicName;});
+    drawPie('invStatusChart',statusData,'statusName','count',function(v){return v.statusName;});
+    var t=document.getElementById('inventoryTable');
+    if(!drugData.length){t.innerHTML='<tr class="empty"><td colspan="4">暂无数据</td></tr>';return;}
+    t.innerHTML=drugData.map(function(v){
+      var av=parseInt(v.availableQty)||0,oc=parseInt(v.occupiedQty)||0,total=av+oc;
+      return '<tr><td>'+h(v.physicName)+'</td><td style="color:#52c41a">'+av+'</td><td style="color:#1890ff">'+oc+'</td><td>'+total+'</td></tr>';
+    }).join('');
+  }).catch(function(){document.getElementById('inventoryTable').innerHTML='<tr class="empty"><td colspan="4">加载失败</td></tr>';});
+}
+
+function getTimeQ() {
+  var st=document.getElementById('sStartTime').value,et=document.getElementById('sEndTime').value,q=[];
+  if(st) q.push('startTime='+encodeURIComponent(st+'T00:00:00'));
+  if(et) q.push('endTime='+encodeURIComponent(et+'T23:59:59'));
+  return q.length?'?'+q.join('&'):'';
+}
+function searchReports(){loadProfitDrug();loadProfitRx();loadSales();loadInventory();}
+function resetSearch(){
+  document.getElementById('sStartTime').value='';document.getElementById('sEndTime').value='';searchReports();
+}
+
+// Modify load functions to pass time parameters
+// Wrapping the existing load functions to add time params
+var _loadProfitDrug = loadProfitDrug;
+loadProfitDrug = function(){var tq=getTimeQ();
+  document.getElementById('profitDrugTable').innerHTML='<tr class="empty"><td colspan="4">加载中...</td></tr>';
+  ajaxFetch('/api/report/profit-by-drug'+tq).then(function(r){return r.json();}).then(function(d){
+    var list=d||[];
+    drawPie('profitDrugChart',list,'physicName','profit',function(v){return v.physicName;});
+    var t=document.getElementById('profitDrugTable');
+    if(!list.length){t.innerHTML='<tr class="empty"><td colspan="4">暂无数据</td></tr>';return;}
+    t.innerHTML=list.map(function(v){return '<tr><td>'+h(v.physicName)+'</td><td>'+v.typeName+'</td><td>'+v.quantity+'</td><td>'+(v.profit||0).toFixed(2)+'</td></tr>';}).join('');
+  }).catch(function(){document.getElementById('profitDrugTable').innerHTML='<tr class="empty"><td colspan="4">加载失败</td></tr>';});
+};
+
+var _loadProfitRx = loadProfitRx;
+loadProfitRx = function(){var tq=getTimeQ();
+  document.getElementById('profitRxTable').innerHTML='<tr class="empty"><td colspan="5">加载中...</td></tr>';
+  ajaxFetch('/api/report/profit-by-prescription'+tq).then(function(r){return r.json();}).then(function(d){
+    var list=d||[];
+    drawPie('profitRxChart',list,'patientName','profit',function(v){return '#'+v.prescriptionId+' '+v.patientName;});
+    var t=document.getElementById('profitRxTable');
+    if(!list.length){t.innerHTML='<tr class="empty"><td colspan="5">暂无数据</td></tr>';return;}
+    t.innerHTML=list.map(function(v){return '<tr><td>#'+v.prescriptionId+'</td><td>'+h(v.patientName)+'</td><td>'+v.itemCount+'</td><td>'+(v.profit||0).toFixed(2)+'</td><td>'+(v.createTime||'-')+'</td></tr>';}).join('');
+  }).catch(function(){document.getElementById('profitRxTable').innerHTML='<tr class="empty"><td colspan="5">加载失败</td></tr>';});
+};
+
+var _loadSales = loadSales;
+loadSales = function(){var tq=getTimeQ();
+  document.getElementById('salesTable').innerHTML='<tr class="empty"><td colspan="3">加载中...</td></tr>';
+  Promise.all([
+    ajaxFetch('/api/report/sales-by-drug'+tq).then(function(r){return r.json();}),
+    ajaxFetch('/api/report/sales-by-type'+tq).then(function(r){return r.json();})
+  ]).then(function(results){
+    var drugData=results[0]||[],typeData=results[1]||[];
+    drawPie('salesDrugChart',drugData,'physicName','quantity',function(v){return v.physicName;});
+    drawPie('salesTypeChart',typeData,'typeName','quantity',function(v){return v.typeName;});
+    var t=document.getElementById('salesTable');
+    if(!drugData.length){t.innerHTML='<tr class="empty"><td colspan="3">暂无数据</td></tr>';return;}
+    t.innerHTML=drugData.map(function(v){return '<tr><td>'+h(v.physicName)+'</td><td>'+v.typeName+'</td><td>'+v.quantity+'</td></tr>';}).join('');
+  }).catch(function(){document.getElementById('salesTable').innerHTML='<tr class="empty"><td colspan="3">加载失败</td></tr>';});
+};
+
+var _loadInventory = loadInventory;
+loadInventory = function(){var tq=getTimeQ();
+  document.getElementById('inventoryTable').innerHTML='<tr class="empty"><td colspan="4">加载中...</td></tr>';
+  Promise.all([
+    ajaxFetch('/api/report/inventory-by-drug'+tq).then(function(r){return r.json();}),
+    ajaxFetch('/api/report/inventory-status'+tq).then(function(r){return r.json();})
+  ]).then(function(results){
+    var drugData=results[0]||[],statusData=results[1]||[];
+    drugData.forEach(function(v){v.total=(parseInt(v.availableQty)||0)+(parseInt(v.occupiedQty)||0);});
+    drawPie('invDrugChart',drugData,'physicName','total',function(v){return v.physicName;});
+    drawPie('invStatusChart',statusData,'statusName','count',function(v){return v.statusName;});
+    var t=document.getElementById('inventoryTable');
+    if(!drugData.length){t.innerHTML='<tr class="empty"><td colspan="4">暂无数据</td></tr>';return;}
+    t.innerHTML=drugData.map(function(v){
+      var av=parseInt(v.availableQty)||0,oc=parseInt(v.occupiedQty)||0,total=av+oc;
+      return '<tr><td>'+h(v.physicName)+'</td><td style="color:#52c41a">'+av+'</td><td style="color:#1890ff">'+oc+'</td><td>'+total+'</td></tr>';
+    }).join('');
+  }).catch(function(){document.getElementById('inventoryTable').innerHTML='<tr class="empty"><td colspan="4">加载失败</td></tr>';});
+};
+
+loadProfitDrug();
+loadProfitRx();
+loadSales();
+loadInventory();
+</script></body></html>

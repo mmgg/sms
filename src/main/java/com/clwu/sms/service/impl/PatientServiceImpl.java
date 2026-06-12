@@ -79,12 +79,12 @@ public class PatientServiceImpl implements PatientService {
         if (null != minAge && minAge.compareTo(0) > 0) {
             LocalDate now = LocalDate.now();
             LocalDate minDate = LocalDate.of(now.getYear() - minAge + 1, 1, 1);
-            queryWrapper.ge("birthDay", minDate);
+            queryWrapper.le("birthDay", minDate);
         }
         if (null != maxAge && maxAge.compareTo(0) > 0) {
             LocalDate now = LocalDate.now();
             LocalDate maxDate = LocalDate.of(now.getYear() - maxAge, 1, 1);
-            queryWrapper.le("birthDay", maxDate);
+            queryWrapper.ge("birthDay", maxDate);
         }
         return patientMapper.selectList(queryWrapper);
     }

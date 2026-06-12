@@ -1,57 +1,45 @@
 package com.clwu.sms.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.Wrapper;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.clwu.sms.entity.User;
+import com.clwu.sms.entity.UserAuth;
 import com.clwu.sms.enums.StatusEnum;
 import com.clwu.sms.enums.UserTypeEnum;
+import com.clwu.sms.mapper.UserAuthMapper;
 import com.clwu.sms.mapper.UserMapper;
 import com.clwu.sms.service.UserService;
 import com.clwu.sms.utils.StringUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import javax.validation.constraints.Null;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * @Author: wuchunlong
- * @Date: 2025/9/23 11:46
- * @Description:
- **/
 @Service
 public class UserServiceImpl implements UserService {
+
     @Autowired
     private UserMapper userMapper;
-    /**
-     * 根据租户ID反馈下面所有的用户
-     *
-     * @param tid =NULL返回系统中所有用户，tenantId!=NULL 返回特定租户下用户
-     * @return 用户列表
-     */
+
+    @Autowired
+    private UserAuthMapper userAuthMapper;
+
     @Override
     public List<User> getAllUser(Long tid) {
-        if (tid != null || tid != 0L) {
-            QueryWrapper<User> queryWrapper = new QueryWrapper();
+        if (tid != null && tid != 0L) {
+            QueryWrapper<User> queryWrapper = new QueryWrapper<>();
             queryWrapper.eq("tid", tid);
             return userMapper.selectList(queryWrapper);
         }
         return userMapper.selectList(null);
     }
 
-    /**
-     * 基于传入参数 按照分页形式返回User信息
-     *
-     * @param pageNum  页码
-     * @param pageSize 每页数量
-     * @param name     姓名
-     * @param phone    手机号
-     * @return 用户列表
-     */
     @Override
     public IPage<User> getUserPage(int pageNum, int pageSize, String name, String phone) {
         Page<User> page = new Page<>(pageNum, pageSize);
@@ -65,50 +53,33 @@ public class UserServiceImpl implements UserService {
         return userMapper.selectPage(page, wrapper);
     }
 
-    /**
-     * 基于用户ID 返回用户信息
-     *
-     * @param userId 用户ID
-     * @return 用户信息
-     */
     @Override
     public User getUserById(Long userId) {
         return userMapper.selectById(userId);
     }
 
-    /**
-     * 增加用户
-     *
-     * @param user 用户信息
-     */
     @Override
+    @Transactional
     public void addUser(User user) {
         userMapper.insert(user);
+        setPassword(user.getId(), "123456");
     }
 
-    /**
-     * 基于用户ID删除用户，注意是软删除
-     *
-     * @param userId
-     */
     @Override
     public void deleUser(Long userId) {
         User user = getUserById(userId);
-        user.setStatus(StatusEnum.US_DISABLE.getCode());
-        userMapper.updateById(user);
+        if (user != null) {
+            user.setStatus(StatusEnum.US_DISABLE.getCode());
+            userMapper.updateById(user);
+        }
     }
 
-    /**
-     * 更新用户信息
-     *
-     * @param user
-     */
     @Override
     public void updUser(User user) {
         UpdateWrapper<User> wrapper = new UpdateWrapper<>();
-        if (user.getId() > 0L) {
+        if (user.getId() != null && user.getId() > 0L) {
             wrapper.eq("id", user.getId());
-            userMapper.update(user,wrapper);
+            userMapper.update(user, wrapper);
         } else {
             if (StringUtil.isNotEmpty(user.getName())) {
                 wrapper.eq("name", user.getName());
@@ -116,11 +87,76 @@ public class UserServiceImpl implements UserService {
             if (StringUtil.isNotEmpty(user.getPhone()) && StringUtil.isPhoneNum(user.getPhone())) {
                 wrapper.eq("phone", user.getPhone());
             }
-            if (user.getType() != UserTypeEnum.UT_UNDEFINE.getCode() &&
-                    UserTypeEnum.findEnumByCode(user.getType()) != null) {
+            if (user.getType() != null
+                    && user.getType() != UserTypeEnum.UT_UNDEFINE.getCode()
+                    && UserTypeEnum.findEnumByCode(user.getType()) != null) {
                 wrapper.eq("type", user.getType());
             }
+            userMapper.update(user, wrapper);
         }
-        userMapper.update(user, wrapper);
+    }
+
+    @Override
+    public User login(String phone, String password) {
+        QueryWrapper<User> wrapper = new QueryWrapper<>();
+        wrapper.eq("phone", phone);
+        wrapper.eq("status", StatusEnum.US_ENABLED.getCode());
+        User user = userMapper.selectOne(wrapper);
+        if (user == null) {
+            return null;
+        }
+
+        QueryWrapper<UserAuth> authWrapper = new QueryWrapper<>();
+        authWrapper.eq("user_id", user.getId());
+        UserAuth userAuth = userAuthMapper.selectOne(authWrapper);
+
+        if (userAuth == null) {
+            return null;
+        }
+
+        String inputHash = sha256Hex(password);
+        if (!userAuth.getPasswordHash().equals(inputHash)) {
+            return null;
+        }
+
+        return user;
+    }
+
+    @Override
+    @Transactional
+    public void setPassword(Long userId, String newPassword) {
+        QueryWrapper<UserAuth> wrapper = new QueryWrapper<>();
+        wrapper.eq("user_id", userId);
+        UserAuth existing = userAuthMapper.selectOne(wrapper);
+
+        String hash = sha256Hex(newPassword);
+        if (existing != null) {
+            existing.setPasswordHash(hash);
+            existing.setUpdateTime(LocalDateTime.now());
+            userAuthMapper.updateById(existing);
+        } else {
+            UserAuth auth = UserAuth.builder()
+                    .userId(userId)
+                    .passwordHash(hash)
+                    .createTime(LocalDateTime.now())
+                    .updateTime(LocalDateTime.now())
+                    .build();
+            userAuthMapper.insert(auth);
+        }
+    }
+
+    /** SHA-256 哈希并转为十六进制字符串（兼容 Java 8） */
+    private String sha256Hex(String input) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(input.getBytes());
+            StringBuilder hex = new StringBuilder(hash.length * 2);
+            for (byte b : hash) {
+                hex.append(String.format("%02x", b & 0xFF));
+            }
+            return hex.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException("SHA-256 not available", e);
+        }
     }
 }

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>诊所管理系统 - 仪表盘</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f0f2f5;
+            display: flex;
+            min-height: 100vh;
+        }
+        /* 侧边栏 */
+        .sidebar {
+            width: 220px;
+            background: #001529;
+            color: #fff;
+            position: fixed;
+            top: 0; left: 0; bottom: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar .logo {
+            padding: 20px;
+            font-size: 18px;
+            font-weight: 600;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            text-align: center;
+        }
+        .sidebar .logo span { color: #1890ff; }
+        .sidebar nav { flex: 1; padding: 12px 0; }
+        .sidebar nav a {
+            display: block;
+            padding: 14px 24px;
+            color: rgba(255,255,255,0.65);
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .sidebar nav a:hover, .sidebar nav a.active {
+            color: #fff;
+            background: rgba(255,255,255,0.08);
+        }
+        .sidebar nav a.active { border-right: 3px solid #1890ff; }
+        .sidebar .user-info {
+            padding: 16px 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            font-size: 13px;
+            color: rgba(255,255,255,0.45);
+        }
+        /* 主内容区 */
+        .main { margin-left: 220px; flex: 1; padding: 24px; }
+        .main h2 { font-size: 20px; color: #333; margin-bottom: 20px; }
+        /* 统计卡片 */
+        .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+        .stat-card {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+        }
+        .stat-card .num { font-size: 28px; font-weight: 600; color: #1890ff; }
+        .stat-card .label { font-size: 14px; color: #999; margin-top: 4px; }
+        /* 欢迎区域 */
+        .welcome {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            padding: 32px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+        }
+        .welcome h3 { font-size: 22px; margin-bottom: 8px; }
+        .welcome p { opacity: 0.85; font-size: 14px; }
+        /* 快捷入口 */
+        .quick-links { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+        .quick-link {
+            background: #fff;
+            border-radius: 8px;
+            padding: 24px;
+            text-align: center;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+            text-decoration: none;
+            color: #333;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .quick-link:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .quick-link .icon { font-size: 32px; margin-bottom: 8px; }
+        .quick-link .name { font-size: 14px; color: #666; }
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="logo">诊所<span>管理</span></div>
+        <nav>
+            <a href="/dashboard" class="active">📊 仪表盘</a>
+            <a href="/patients">👤 患者管理</a>
+            <a href="/physic">💊 药品/耗材</a>
+            <a href="/purchase">📦 进货管理</a>
+            <a href="/prescription">📋 处方管理</a>
+            <a href="/inventory">🏪 库存查询</a>
+<a href="/selling-price">💰 售价管理</a>
+            <a href="/report">📈 报表统计</a>
+            <a href="/user">👥 用户管理</a>
+        </nav>
+        <div class="user-info" id="userInfo">加载中...</div>
+    </aside>
+    <div class="main">
+        <div class="welcome">
+            <h3>欢迎使用诊所管理系统</h3>
+            <p>日常运营管理、患者信息、处方开具、库存管理一站式完成</p>
+        </div>
+        <div class="stats">
+            <div class="stat-card"><div class="num" id="statPatients">-</div><div class="label">患者总数</div></div>
+            <div class="stat-card"><div class="num" id="statPhysic">-</div><div class="label">药品/耗材</div></div>
+            <div class="stat-card"><div class="num" id="statStock">-</div><div class="label">库存品种</div></div>
+            <div class="stat-card"><div class="num" id="statPrescription">-</div><div class="label">本月处方</div></div>
+        </div>
+        <h2>快捷入口</h2>
+        <div class="quick-links">
+            <a href="/patients" class="quick-link"><div class="icon">👤</div><div class="name">患者管理</div></a>
+            <a href="/prescription" class="quick-link"><div class="icon">📋</div><div class="name">开处方</div></a>
+            <a href="/physic" class="quick-link"><div class="icon">💊</div><div class="name">药品管理</div></a>
+            <a href="/inventory" class="quick-link"><div class="icon">🏪</div><div class="name">库存查询</div></a>
+        </div>
+    </div>
+    <script>
+        // 显示当前用户
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', '/api/user/current', true);
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                var resp = JSON.parse(xhr.responseText);
+                if (resp.code === 200) {
+                    document.getElementById('userInfo').textContent = '👤 ' + resp.data.name + ' (' + resp.data.phone + ')';
+                } else {
+                    window.location.href = '/login';
+                }
+            } else {
+                window.location.href = '/login';
+            }
+        };
+        xhr.onerror = function() { window.location.href = '/login'; };
+        xhr.send();
+
+        // 加载统计数据
+        fetch('/api/dashboard/stats').then(r => r.json()).then(resp => {
+            if (resp.code === 200) {
+                document.getElementById('statPatients').textContent = resp.data.patients || 0;
+                document.getElementById('statPhysic').textContent = resp.data.physicCount || 0;
+                document.getElementById('statStock').textContent = resp.data.stockItems || 0;
+                document.getElementById('statPrescription').textContent = resp.data.monthPrescriptions || 0;
+            }
+        }).catch(function(){});
+    </script>
+</body>
+</html>

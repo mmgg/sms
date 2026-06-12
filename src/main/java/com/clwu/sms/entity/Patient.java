@@ -8,18 +8,15 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import javax.persistence.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-@Entity
 @TableName("t_patient")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class Patient {
-    @Id
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
@@ -31,19 +28,15 @@ public class Patient {
 
     private String addr;
 
-    private Byte status;
+    private int status;
 
-    @Column(name = "create_time")
     private LocalDateTime createTime;
 
-    @Column(name = "update_time")
     private LocalDateTime updateTime;
 
-    @Column(name = "update_user")
     private Long updateUser;
 
-    @Column(name = "create_user")
-    private Integer createUser;
+    private Long createUser;
 }
 
 

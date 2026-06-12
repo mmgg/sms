@@ -38,9 +38,16 @@ public interface SellingPricingService {
 
     /**
      * 基于药物ID查询
-     * @param id
+     * @param pid
      * @param status
      * @return
      */
-    public List<SellingPrice> findSellingPriceByPhysic(Long id, int status);
+    public List<SellingPrice> findSellingPriceByPhysic(Long pid, int status);
+
+    /**
+     * 返回sellingPrice列表
+     * @return
+     */
+    public List<SellingPrice> listSellingPrice();
+
 }

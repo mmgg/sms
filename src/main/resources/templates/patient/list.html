@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>患者管理</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:#f0f2f5; display:flex; min-height:100vh; }
+.sidebar { width:220px; background:#001529; color:#fff; position:fixed; top:0; left:0; bottom:0; display:flex; flex-direction:column; }
+.sidebar .logo { padding:20px; font-size:18px; font-weight:600; border-bottom:1px solid rgba(255,255,255,0.1); text-align:center; }
+.sidebar .logo span { color:#1890ff; }
+.sidebar nav { flex:1; padding:12px 0; }
+.sidebar nav a { display:block; padding:14px 24px; color:rgba(255,255,255,0.65); text-decoration:none; font-size:14px; transition:all 0.2s; }
+.sidebar nav a:hover, .sidebar nav a.active { color:#fff; background:rgba(255,255,255,0.08); }
+.main { margin-left:220px; flex:1; padding:24px; }
+.page-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; }
+.page-header h2 { font-size:20px; color:#333; }
+.btn { padding:8px 20px; border-radius:6px; border:none; cursor:pointer; font-size:14px; transition:opacity 0.2s; }
+.btn:hover { opacity:0.85; }
+.btn-primary { background:#1890ff; color:#fff; }
+.btn-danger { background:#ff4d4f; color:#fff; }
+.btn-sm { padding:4px 12px; font-size:12px; }
+.btn-edit { background:#52c41a; color:#fff; }
+.search-bar { background:#fff; padding:16px; border-radius:8px; margin-bottom:16px; display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; box-shadow:0 1px 4px rgba(0,0,0,0.05); }
+.search-bar label { font-size:13px; color:#666; margin-bottom:4px; display:block; }
+.search-bar input { padding:8px 12px; border:1px solid #d9d9d9; border-radius:6px; font-size:13px; width:160px; }
+.search-bar input:focus { outline:none; border-color:#1890ff; box-shadow:0 0 0 2px rgba(24,144,255,0.1); }
+.table-card { background:#fff; border-radius:8px; box-shadow:0 1px 4px rgba(0,0,0,0.05); overflow:hidden; }
+table { width:100%; border-collapse:collapse; }
+thead { background:#fafafa; }
+th { padding:12px 16px; text-align:left; font-weight:600; font-size:13px; color:#666; border-bottom:1px solid #f0f0f0; }
+td { padding:12px 16px; font-size:13px; color:#333; border-bottom:1px solid #f0f0f0; }
+tr:hover td { background:#f5f7fa; }
+.action-btns { display:flex; gap:6px; }
+.modal-overlay { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.45); z-index:1000; justify-content:center; align-items:center; }
+.modal-overlay.show { display:flex; }
+.modal { background:#fff; border-radius:8px; width:500px; max-height:90vh; overflow-y:auto; box-shadow:0 4px 24px rgba(0,0,0,0.15); }
+.modal-header { padding:16px 24px; border-bottom:1px solid #f0f0f0; display:flex; justify-content:space-between; align-items:center; }
+.modal-header h3 { font-size:16px; color:#333; }
+.modal-close { background:none; border:none; font-size:20px; cursor:pointer; color:#999; }
+.modal-body { padding:24px; }
+.modal-body .form-group { margin-bottom:16px; }
+.modal-body label { display:block; font-size:13px; color:#666; margin-bottom:6px; }
+.modal-body input, .modal-body select { width:100%; padding:8px 12px; border:1px solid #d9d9d9; border-radius:6px; font-size:13px; }
+.modal-body input:focus, .modal-body select:focus { outline:none; border-color:#1890ff; }
+.form-row { display:flex; gap:12px; }
+.form-row .form-group { flex:1; }
+.modal-footer { padding:12px 24px; border-top:1px solid #f0f0f0; display:flex; justify-content:flex-end; gap:8px; }
+.modal-footer .btn-cancel { background:#fff; border:1px solid #d9d9d9; padding:8px 20px; border-radius:6px; cursor:pointer; font-size:14px; }
+.toast { position:fixed; top:20px; right:20px; padding:12px 24px; border-radius:6px; color:#fff; font-size:14px; z-index:2000; display:none; animation:slideIn 0.3s; }
+.toast.success { background:#52c41a; }
+.toast.error { background:#ff4d4f; }
+@keyframes slideIn { from { transform:translateX(100%); opacity:0; } to { transform:translateX(0); opacity:1; } }
+.empty-row td { text-align:center; color:#999; padding:40px; }
+</style>
+</head>
+<body>
+<aside class="sidebar">
+<div class="logo">诊所<span>管理</span></div>
+<nav>
+<a href="/dashboard">📊 仪表盘</a>
+<a href="/patients" class="active">👤 患者管理</a>
+<a href="/physic">💊 药品/耗材</a>
+<a href="/purchase">📦 进货管理</a>
+<a href="/prescription">📋 处方管理</a>
+<a href="/inventory">🏪 库存查询</a>
+<a href="/selling-price">💰 售价管理</a>
+<a href="/report">📈 报表统计</a>
+<a href="/user">👥 用户管理</a>
+</nav>
+</aside>
+<div class="main">
+<div class="page-header">
+<h2>👤 患者管理</h2>
+<div><button class="btn btn-primary" onclick="openAddModal()">+ 新增患者</button></div>
+</div>
+<div class="search-bar">
+<div><label>姓名</label><input id="sName" placeholder="输入姓名"></div>
+<div><label>电话</label><input id="sPhone" placeholder="输入电话"></div>
+<div><label>地址</label><input id="sAddr" placeholder="输入地址"></div>
+<div style="display:flex;gap:8px;align-items:flex-end">
+<button class="btn btn-primary" onclick="loadPatients()">🔍 搜索</button>
+<button class="btn" style="background:#fff;border:1px solid #d9d9d9" onclick="resetSearch()">↺ 重置</button>
+</div>
+</div>
+<div class="table-card">
+<table>
+<thead><tr>
+<th>ID</th><th>姓名</th><th>电话</th><th>出生日期</th><th>地址</th><th>状态</th><th>操作</th>
+</tr></thead>
+<tbody id="patientTable"><tr class="empty-row"><td colspan="7">加载中...</td></tr></tbody>
+</table>
+</div>
+</div>
+
+<div class="modal-overlay" id="patientModal">
+<div class="modal">
+<div class="modal-header"><h3 id="modalTitle">新增患者</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+<div class="modal-body">
+<input type="hidden" id="editId">
+<div class="form-group"><label>姓名 *</label><input id="fName" placeholder="请输入姓名"></div>
+<div class="form-group"><label>电话 *</label><input id="fPhone" placeholder="请输入手机号"></div>
+<div class="form-group"><label>出生日期</label><input id="fBirthday" type="date"></div>
+<div class="form-group"><label>状态</label><select id="fStatus" style="color:#52c41a;font-weight:500;background:#fff">
+          <option value="1" style="color:#52c41a">✓ 正常</option>
+          <option value="0" style="color:#faad14">待设置</option>
+          <option value="-1" style="color:#ff4d4f">✕ 停用</option>
+        </select></div><div class="form-group"><label>地址</label><input id="fAddr" placeholder="请输入地址"></div>
+</div>
+<div class="modal-footer">
+<button class="btn-cancel" onclick="closeModal()">取消</button>
+<button class="btn btn-primary" onclick="savePatient()">保存</button>
+</div>
+</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+let patients = [];
+function fetchApi(url, opts) { return fetch(url, opts).then(r => r.json()).catch(() => null); }
+
+function statusText(s){return s===1?"正常":s===0?"待设置":s===-1?"停用":s===2?"占用":"未知";}function statusColor(s){return s===1?"#52c41a":s===0?"#faad14":s===-1?"#ff4d4f":s===2?"#1890ff":"#999";}
+function showToast(msg, type) {
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast ' + type; t.style.display = 'block';
+  setTimeout(function(){ t.style.display = 'none'; }, 2500);
+}
+
+function loadPatients() {
+  var name = document.getElementById('sName').value;
+  var phone = document.getElementById('sPhone').value;
+  var addr = document.getElementById('sAddr').value;
+  document.getElementById('patientTable').innerHTML = '<tr class="empty-row"><td colspan="7">加载中...</td></tr>';
+  fetch('/patient/list?name='+encodeURIComponent(name)+'&phone='+encodeURIComponent(phone)+'&addr='+encodeURIComponent(addr))
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      patients = data || [];
+      renderTable();
+    })
+    .catch(function(){ document.getElementById('patientTable').innerHTML = '<tr class="empty-row"><td colspan="7">加载失败</td></tr>'; });
+}
+
+function renderTable() {
+  var tbody = document.getElementById('patientTable');
+  if (!patients || patients.length === 0) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="7">暂无数据</td></tr>';
+    return;
+  }
+  tbody.innerHTML = patients.map(function(p){
+    var st = statusText(p.status);
+    var sc = statusColor(p.status);
+    var bday = p.birthday ? p.birthday.substring(0,10) : '-';
+    return '<tr><td>'+p.id+'</td><td>'+htmlEscape(p.name)+'</td><td>'+htmlEscape(p.phone)+'</td><td>'+bday+'</td><td>'+htmlEscape(p.addr||'')+'</td><td style="color:'+sc+'">'+st+'</td><td class="action-btns">' +
+      '<button class="btn btn-sm btn-edit" onclick="openEditModal('+p.id+')">编辑</button>' +
+      '<button class="btn btn-sm btn-danger" onclick="delPatient('+p.id+')">删除</button></td></tr>';
+  }).join('');
+}
+
+function htmlEscape(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function resetSearch() { document.getElementById('sName').value=''; document.getElementById('sPhone').value=''; document.getElementById('sAddr').value=''; loadPatients(); }
+
+function openAddModal() {
+  document.getElementById('modalTitle').textContent = '新增患者';
+  document.getElementById('editId').value = '';
+  document.getElementById('fName').value = '';
+  document.getElementById('fPhone').value = '';
+  document.getElementById('fBirthday').value = '';
+  document.getElementById('fAddr').value = '';
+  document.getElementById('fStatus').value = '1';
+  document.getElementById('patientModal').classList.add('show');
+}
+
+function openEditModal(id) {
+  var p = patients.find(function(x){ return x.id == id; });
+  if (!p) return;
+  document.getElementById('modalTitle').textContent = '编辑患者';
+  document.getElementById('editId').value = p.id;
+  document.getElementById('fName').value = p.name || '';
+  document.getElementById('fPhone').value = p.phone || '';
+  document.getElementById('fBirthday').value = p.birthday ? p.birthday.substring(0,10) : '';
+  document.getElementById('fAddr').value = p.addr || '';
+  document.getElementById('fStatus').value = p.status != null ? String(p.status) : '1';
+  document.getElementById('patientModal').classList.add('show');
+}
+
+function closeModal() { document.getElementById('patientModal').classList.remove('show'); }
+
+function savePatient() {
+  var id = document.getElementById('editId').value;
+  var name = document.getElementById('fName').value.trim();
+  var phone = document.getElementById('fPhone').value.trim();
+  if (!name) { showToast('请输入姓名', 'error'); return; }
+  if (!phone) { showToast('请输入电话', 'error'); return; }
+  var birthday = document.getElementById('fBirthday').value;
+  var addr = document.getElementById('fAddr').value.trim();
+  var status = document.getElementById('fStatus').value;
+  var body = JSON.stringify({ name:name, phone:phone, birthday:birthday||null, addr:addr||'', status:parseInt(status) });
+  var url, method;
+  if (id) { url = '/patient/upd'; body = JSON.stringify({ id:parseInt(id), name:name, phone:phone, birthday:birthday||null, addr:addr||'', status:parseInt(status) }); }
+  else { url = '/patient/add'; }
+  fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:body })
+    .then(function(r){ return r.json(); })
+    .then(function(resp){
+      if (resp.code === 200 || resp.code === undefined) {
+        showToast(id ? '更新成功' : '添加成功', 'success');
+        closeModal(); loadPatients();
+      } else { showToast(resp.msg || '操作失败', 'error'); }
+    })
+    .catch(function(){ showToast('网络错误', 'error'); });
+}
+
+function delPatient(id) {
+  if (!confirm('确定要删除该患者吗？')) return;
+  fetch('/patient/del?id='+id, { method:'POST' })
+    .then(function(r){ return r.json(); })
+    .then(function(resp){
+      if (resp.code === 200 || resp.code === undefined) { showToast('删除成功', 'success'); loadPatients(); }
+      else { showToast(resp.msg || '删除失败', 'error'); }
+    })
+    .catch(function(){ showToast('网络错误', 'error'); });
+}
+
+loadPatients();
+</script>
+</body>
+</html>

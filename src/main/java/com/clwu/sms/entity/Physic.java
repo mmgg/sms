@@ -8,17 +8,14 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import javax.persistence.*;
 import java.time.LocalDateTime;
 
-@Entity
 @TableName("t_physic")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class Physic {
-    @Id
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
@@ -34,13 +31,10 @@ public class Physic {
 
     private String manufacturer;
 
-    @Column(name = "create_time")
     private LocalDateTime createTime;
 
-    @Column(name = "update_time")
     private LocalDateTime updateTime;
 
-    @Column(name = "update_user")
     private Long updateUser;
 }
 
