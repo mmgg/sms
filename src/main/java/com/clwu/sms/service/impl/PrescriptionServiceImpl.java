@@ -43,17 +43,21 @@ public class PrescriptionServiceImpl implements PrescriptionService {
 
 
     /**
-     * 添加处方
+     * 添加处方,基于Prescription类插入到数据库中，需要测试ID为负值情况
      *
      * @param perscription
      */
     @Override
     public void addPrescription(Prescription perscription) {
+        if (perscription == null) {
+            throw new BusinessException(400, "插入处方参数为null");
+        }
         perscriptionMapper.insert(perscription);
+
     }
 
     /**
-     * 删除处方
+     * 基于处方ID，删除处方方法，是软删除，修改状态。需要测试ID有存在，ID不存在等情况
      *
      * @param id
      */
@@ -65,7 +69,7 @@ public class PrescriptionServiceImpl implements PrescriptionService {
     }
 
     /**
-     * 更新处方
+     * 更新处方，基于处方信息更新处方
      *
      * @param perscription
      */
@@ -109,19 +113,12 @@ public class PrescriptionServiceImpl implements PrescriptionService {
     }
 
     /**
-     * 更新处方价格信息
-     * @param id
+     * 为处方中增加药品信息。首先从在处方表中增加一个记录，然后根据request里面的药品list，逐个查询药品信息以及售价信息，
+     * 同时根据处方中每个药品判断库存是否够用。
+     * 同时根据处方中每个药品判断库存是否够用。
+     * @param request
+     * @return
      */
-    public void updCostAndIncome(Long id) {
-        UpdateWrapper<Prescription> updateWrapper = new UpdateWrapper<>();
-        updateWrapper.eq("id", id);
-        perscriptionMapper.update(null, updateWrapper);
-    }
-
-    public Double calcCost(Long id) {
-        return 0.0;
-    }
-
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long createPrescriptionWithItems(PrescriptionRequest request) {

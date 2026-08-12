@@ -60,7 +60,7 @@ public class PurchaseDetailServiceImpl implements PurchaseDetailService {
             addPurchaseDetail(pbid, pid, price, num);
         } else {
             UpdateWrapper<PurchaseDetail> updateWrapper = new UpdateWrapper<>();
-            updateWrapper.eq("batch", pbid).eq("physic", pbid).set("price", price);
+            updateWrapper.eq("batch", pbid).eq("physic", pid).set("price", price);
             parchaseDetailMapper.update(null, updateWrapper);
         }
     }
