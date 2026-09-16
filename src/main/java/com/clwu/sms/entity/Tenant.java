@@ -19,6 +19,11 @@ public class Tenant {
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
+    /**
+     * 登录时使用的诊所编码，必须全局唯一。
+     */
+    private String code;
+
     private String name;
 
     private Integer status;
@@ -27,5 +32,4 @@ public class Tenant {
 
     private LocalDateTime updateTime;
 }
-
 

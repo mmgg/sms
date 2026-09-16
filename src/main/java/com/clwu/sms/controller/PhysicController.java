@@ -27,6 +27,11 @@ public class PhysicController {
         return physicService.findPhysicById(id);
     }
 
+    @GetMapping("/getByBarcode")
+    public Physic getByBarcode(@RequestParam String barcode) {
+        return physicService.findPhysicByBarcode(barcode);
+    }
+
     @PostMapping("/add")
     public ResultVo<?> add(@RequestBody Physic physic) {
         physic.setStatus(StatusEnum.US_ENABLED.getCode());

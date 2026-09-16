@@ -1,6 +1,7 @@
 package com.clwu.sms.controller;
 
 import com.clwu.sms.entity.User;
+import com.clwu.sms.config.SessionConstants;
 import com.clwu.sms.service.UserService;
 import com.clwu.sms.vo.ResultVo;
 import org.slf4j.Logger;
@@ -35,19 +36,21 @@ public class LoginController {
      */
     @PostMapping("/api/login")
     @ResponseBody
-    public ResultVo<?> login(@RequestParam String phone,
+    public ResultVo<?> login(@RequestParam String tenantCode,
+                             @RequestParam String phone,
                              @RequestParam String password,
                              HttpSession session) {
-        log.info("用户登录尝试: phone={}", phone);
+        log.info("用户登录尝试: tenantCode={}, phone={}", tenantCode, phone);
 
-        User user = userService.login(phone, password);
+        User user = userService.login(tenantCode, phone, password);
         if (user == null) {
-            log.warn("登录失败: phone={}", phone);
-            return ResultVo.error(401, "手机号或密码错误");
+            log.warn("登录失败: tenantCode={}, phone={}", tenantCode, phone);
+            return ResultVo.error(401, "诊所编码、手机号或密码错误");
         }
 
-        session.setAttribute("currentUser", user);
-        log.info("登录成功: user={}, name={}", user.getId(), user.getName());
+        session.setAttribute(SessionConstants.CURRENT_USER, user);
+        log.info("登录成功: tenantId={}, user={}, name={}",
+                user.getTenantId(), user.getId(), user.getName());
         return ResultVo.ok(user);
     }
 
@@ -67,7 +70,7 @@ public class LoginController {
     @GetMapping("/api/user/current")
     @ResponseBody
     public ResultVo<?> currentUser(HttpSession session) {
-        User user = (User) session.getAttribute("currentUser");
+        User user = (User) session.getAttribute(SessionConstants.CURRENT_USER);
         if (user == null) {
             return ResultVo.error(401, "未登录");
         }

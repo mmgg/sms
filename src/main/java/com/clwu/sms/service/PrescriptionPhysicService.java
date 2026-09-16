@@ -17,16 +17,31 @@ public interface PrescriptionPhysicService {
     public void addPrescriptionPhysic(PrescriptionPhysic prescriptionPhysic);
 
     /**
+     * 单独新增处方药品并同步占用库存。
+     */
+    void addPrescriptionPhysicWithStock(PrescriptionPhysic prescriptionPhysic);
+
+    /**
      * 删除处方药品
      * @param id
      */
     public void delPrescriptionPhysic(Long id);
 
     /**
+     * 删除处方药品并释放其占用的库存。
+     */
+    void deleteWithStockRelease(Long id);
+
+    /**
      * 更新处方药品(更新数量的时候注意要调整进货明细表)
      * @param prescriptionPhysic
      */
     public void updPrescriptionPhysic(PrescriptionPhysic prescriptionPhysic);
+
+    /**
+     * 调整处方药品及对应库存占用关系。
+     */
+    void updateWithStockAdjustment(PrescriptionPhysic prescriptionPhysic);
 
     /**
      * 基于id查询

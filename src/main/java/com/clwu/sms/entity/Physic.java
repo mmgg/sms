@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Physic {
+public class Physic extends BaseTenantEntity {
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
@@ -27,6 +27,11 @@ public class Physic {
 
     private String alias;
 
+    /**
+     * 扫码枪使用的药品/耗材条码。
+     */
+    private String barcode;
+
     private int status;
 
     private String manufacturer;
@@ -37,5 +42,3 @@ public class Physic {
 
     private Long updateUser;
 }
-
-

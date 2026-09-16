@@ -7,12 +7,15 @@ import com.clwu.sms.entity.PrescriptionPhysic;
 import com.clwu.sms.entity.Physic;
 import com.clwu.sms.entity.SellingPrice;
 import com.clwu.sms.enums.StatusEnum;
+import com.clwu.sms.exception.BusinessException;
 import com.clwu.sms.mapper.PrescriptionPhysicMapper;
 import com.clwu.sms.service.PurchaseDetailService;
 import com.clwu.sms.service.PrescriptionPhysicService;
 import com.clwu.sms.service.PhysicService;
 import com.clwu.sms.service.SellingPricingService;
 import com.clwu.sms.vo.PrescriptionPhysicDetailVo;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +30,9 @@ import java.util.List;
  **/
 @Service
 public class PrescriptionPhysicServiceImpl implements PrescriptionPhysicService {
+
+    private static final Logger log = LoggerFactory.getLogger(PrescriptionPhysicServiceImpl.class);
+
     @Autowired
     private PrescriptionPhysicMapper prescriptionPyhsicMapper;
     @Autowired
@@ -44,8 +50,19 @@ public class PrescriptionPhysicServiceImpl implements PrescriptionPhysicService 
     @Override
     @Transactional
     public void addPrescriptionPhysic(PrescriptionPhysic prescriptionPhysic) {
-        // 在处方明细表中插入一条记录
+        // 只负责处方明细落库，库存占用与金额计算由上层事务统一编排。
         prescriptionPyhsicMapper.insert(prescriptionPhysic);
+        log.info("新增处方药品: prescriptionId={}, prescriptionPhysicId={}, physicId={}, num={}",
+                prescriptionPhysic.getPrescription(), prescriptionPhysic.getId(),
+                prescriptionPhysic.getPhysic(), prescriptionPhysic.getNum());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void addPrescriptionPhysicWithStock(PrescriptionPhysic prescriptionPhysic) {
+        addPrescriptionPhysic(prescriptionPhysic);
+        occupyOrThrow(prescriptionPhysic.getId(),
+                prescriptionPhysic.getPhysic(), prescriptionPhysic.getNum());
         updConstAndIncomeById(prescriptionPhysic.getId());
     }
 
@@ -56,11 +73,7 @@ public class PrescriptionPhysicServiceImpl implements PrescriptionPhysicService 
      */
     @Override
     public void delPrescriptionPhysic(Long id) {
-        PrescriptionPhysic PrescriptionPhysic = findPrescriptionPhysicById(id);
-        UpdateWrapper<PrescriptionPhysic> updateWrapper = new UpdateWrapper<>();
-        updateWrapper.eq("id", id);
-        updateWrapper.set("status", StatusEnum.US_DISABLE.getCode());
-        prescriptionPyhsicMapper.update(null, updateWrapper);
+        deleteWithStockRelease(id);
     }
 
     /**
@@ -73,7 +86,63 @@ public class PrescriptionPhysicServiceImpl implements PrescriptionPhysicService 
         if (null == prescriptionPhysic || prescriptionPhysic.getId() <= 0L) {
             return;
         }
+        prescriptionPhysic.setTenantId(null);
+        prescriptionPhysic.setDeleted(null);
         prescriptionPyhsicMapper.updateById(prescriptionPhysic);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteWithStockRelease(Long id) {
+        PrescriptionPhysic source = findPrescriptionPhysicById(id);
+        if (source == null) {
+            return;
+        }
+        if (source.getStatus() == StatusEnum.US_ENABLED.getCode()) {
+            int occupied = parchaseDetailService.getSizeByPPIdAndStatus(
+                    id, StatusEnum.US_OCCUPY.getCode()).intValue();
+            int released = parchaseDetailService.updPurchaseDetailEnable(
+                    id, source.getPhysic(), occupied, StatusEnum.US_OCCUPY.getCode());
+            if (occupied > 0 && released != occupied) {
+                throw new BusinessException(500, "释放处方库存失败");
+            }
+        }
+        prescriptionPyhsicMapper.deleteById(id);
+        log.info("删除处方药品并释放库存: prescriptionPhysicId={}, physicId={}",
+                id, source.getPhysic());
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateWithStockAdjustment(PrescriptionPhysic target) {
+        if (target == null || target.getId() == null || target.getId() <= 0L) {
+            return;
+        }
+        PrescriptionPhysic source = findPrescriptionPhysicById(target.getId());
+        if (source == null) {
+            throw new BusinessException(404, "处方药品不存在");
+        }
+        if (target.getStatus() == StatusEnum.US_DISABLE.getCode()) {
+            deleteWithStockRelease(target.getId());
+            return;
+        }
+
+        boolean physicChanged = !source.getPhysic().equals(target.getPhysic());
+        boolean numChanged = target.getNum() != null && !source.getNum().equals(target.getNum());
+        if (physicChanged) {
+            releaseOrThrow(source);
+            occupyOrThrow(target.getId(), target.getPhysic(), target.getNum());
+        } else if (numChanged) {
+            releaseOrThrow(source);
+            occupyOrThrow(target.getId(), source.getPhysic(), target.getNum());
+        }
+
+        target.setTenantId(null);
+        target.setDeleted(null);
+        prescriptionPyhsicMapper.updateById(target);
+        updConstAndIncomeById(target.getId());
+        log.info("调整处方药品库存: prescriptionPhysicId={}, physicId={}, num={}",
+                target.getId(), target.getPhysic(), target.getNum());
     }
 
     /**
@@ -118,16 +187,8 @@ public class PrescriptionPhysicServiceImpl implements PrescriptionPhysicService 
         Physic physic = physicService.findPhysicById(perscriptionPhysic.getPhysic());
         // 卖出价格信息
         SellingPrice sellingPrice = sellingPricingService.findSellingPriceById(perscriptionPhysic.getSelling());
-        List<PurchaseDetail> parchaseDetailList = parchaseDetailService.findPurchaseDetailByPPid(id,
-                StatusEnum.US_OCCUPY.getCode());
-        BigDecimal sum = new BigDecimal("0.0");
-        // 计算成本信息
-        for(PurchaseDetail parchaseDetail: parchaseDetailList) {
-            sum = sum.add(parchaseDetail.getBuyingPrice());
-        }
         perscriptionPhysicDetailVo.setPhysic(physic);
-        perscriptionPhysicDetailVo.setNum(parchaseDetailList.size());
-        perscriptionPhysicDetailVo.setPurchaseDetails(parchaseDetailList);
+        perscriptionPhysicDetailVo.setNum(perscriptionPhysic.getNum());
         perscriptionPhysicDetailVo.setSellingPrice(sellingPrice);
         return perscriptionPhysicDetailVo;
     }
@@ -161,5 +222,30 @@ public class PrescriptionPhysicServiceImpl implements PrescriptionPhysicService 
         PrescriptionPhysic perscriptionPhysic = findPrescriptionPhysicById(id);
         SellingPrice sellingPrice = sellingPricingService.findSellingPriceById(perscriptionPhysic.getSelling());
         return sellingPrice.getPrice().multiply(new BigDecimal(perscriptionPhysic.getNum()));
+    }
+
+    private void releaseOrThrow(PrescriptionPhysic source) {
+        int occupied = parchaseDetailService.getSizeByPPIdAndStatus(
+                source.getId(), StatusEnum.US_OCCUPY.getCode()).intValue();
+        if (occupied <= 0) {
+            return;
+        }
+        int released = parchaseDetailService.updPurchaseDetailEnable(
+                source.getId(), source.getPhysic(), occupied, StatusEnum.US_OCCUPY.getCode());
+        if (released != occupied) {
+            throw new BusinessException(500, "释放原处方药品库存失败");
+        }
+    }
+
+    private void occupyOrThrow(Long prescriptionPhysicId, Long physicId, Integer num) {
+        if (physicId == null || num == null || num <= 0) {
+            throw new BusinessException(400, "处方药品和数量不能为空");
+        }
+        int occupied = parchaseDetailService.updPurchaseDetailNum(
+                prescriptionPhysicId, physicId, num,
+                StatusEnum.US_ENABLED.getCode(), StatusEnum.US_OCCUPY.getCode());
+        if (occupied != num) {
+            throw new BusinessException(400, "库存不足，无法调整处方药品");
+        }
     }
 }

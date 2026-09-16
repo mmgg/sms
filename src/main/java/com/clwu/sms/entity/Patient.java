@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Patient {
+public class Patient extends BaseTenantEntity {
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
@@ -38,5 +38,4 @@ public class Patient {
 
     private Long createUser;
 }
-
 

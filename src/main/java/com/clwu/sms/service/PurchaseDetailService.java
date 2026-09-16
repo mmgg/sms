@@ -24,7 +24,7 @@ public interface PurchaseDetailService {
 
     List<PurchaseDetail> findListLockByPPidAndStatus(Long ppid, int status, Boolean isDesc);
 
-    int updPurchaseDetailEnable(Long pid, int num, int sourceStatus);
+    int updPurchaseDetailEnable(Long ppid, Long pid, int num, int sourceStatus);
 
     /** 获取所有药品的库存汇总 */
     List<StockSummaryVo> getStockSummary();

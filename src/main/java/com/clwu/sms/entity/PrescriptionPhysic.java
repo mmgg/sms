@@ -3,6 +3,7 @@ package com.clwu.sms.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -16,7 +17,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class PrescriptionPhysic {
+public class PrescriptionPhysic extends BaseTenantEntity {
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
@@ -39,9 +40,9 @@ public class PrescriptionPhysic {
 
     private String remarks;
     // 总成本
+    @JsonIgnore
     private BigDecimal cost;
     // 总收入
+    @JsonIgnore
     private BigDecimal income;
 }
-
-

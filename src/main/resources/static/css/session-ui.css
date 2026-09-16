@@ -1,0 +1,34 @@
+.session-user-box {
+    margin-top: auto;
+    padding: 14px 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.session-user-name {
+    display: block;
+    color: #fff;
+    font-size: 13px;
+    line-height: 1.5;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.session-user-role {
+    display: block;
+    margin-top: 2px;
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 12px;
+}
+
+.session-logout {
+    display: inline-block;
+    margin-top: 8px;
+    color: rgba(255, 255, 255, 0.65) !important;
+    font-size: 13px;
+    text-decoration: none;
+}
+
+.session-logout:hover {
+    color: #fff !important;
+}

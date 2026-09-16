@@ -8,6 +8,8 @@ import com.clwu.sms.mapper.PatientMapper;
 import com.clwu.sms.service.PatientService;
 import com.clwu.sms.utils.DateTimeUtil;
 import com.clwu.sms.utils.StringUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -23,6 +25,9 @@ import java.util.List;
  **/
 @Service
 public class PatientServiceImpl implements PatientService {
+
+    private static final Logger log = LoggerFactory.getLogger(PatientServiceImpl.class);
+
     @Autowired
     private PatientMapper patientMapper;
 
@@ -108,12 +113,12 @@ public class PatientServiceImpl implements PatientService {
      * @param pid 患者ID
      */
     @Override
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     public void delPatient(Long pid) {
         if (pid == null || pid <= 0L) {
             return;
         }
-        UpdateWrapper<Patient> updateWrapper = new UpdateWrapper<>();
-        updateWrapper.eq("id", pid).set("status", StatusEnum.US_DISABLE.getCode());
-        patientMapper.update(null, updateWrapper);
+        patientMapper.deleteById(pid);
+        log.info("逻辑删除患者: patientId={}", pid);
     }
 }

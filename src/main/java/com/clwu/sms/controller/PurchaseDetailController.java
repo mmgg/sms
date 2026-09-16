@@ -67,8 +67,8 @@ public class PurchaseDetailController {
             vo.setQuantity(items.size());
             int avail = 0, occupy = 0;
             for (PurchaseDetail d : items) {
-                if (d.getStatus() == 1) avail++;
-                else if (d.getStatus() == 2) occupy++;
+                if (d.getStatus() == StatusEnum.US_ENABLED.getCode()) avail++;
+                else if (d.getStatus() == StatusEnum.US_OCCUPY.getCode()) occupy++;
             }
             vo.setAvailableQty(avail);
             vo.setOccupiedQty(occupy);

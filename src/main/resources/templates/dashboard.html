@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>诊所管理系统 - 仪表盘</title>
+    <link rel="stylesheet" href="/css/session-ui.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -104,11 +105,15 @@
             <a href="/report">📈 报表统计</a>
             <a href="/user">👥 用户管理</a>
         </nav>
-        <div class="user-info" id="userInfo">加载中...</div>
+        <div class="session-user-box">
+            <span class="session-user-name">当前用户：<span data-current-user-name>加载中...</span></span>
+            <span class="session-user-role" data-current-user-role></span>
+            <a href="#" class="session-logout" data-logout>退出登录</a>
+        </div>
     </aside>
     <div class="main">
         <div class="welcome">
-            <h3>欢迎使用诊所管理系统</h3>
+            <h3><span data-current-tenant-name>诊所</span>管理系统</h3>
             <p>日常运营管理、患者信息、处方开具、库存管理一站式完成</p>
         </div>
         <div class="stats">
@@ -123,9 +128,11 @@
             <a href="/prescription" class="quick-link"><div class="icon">📋</div><div class="name">开处方</div></a>
             <a href="/physic" class="quick-link"><div class="icon">💊</div><div class="name">药品管理</div></a>
             <a href="/inventory" class="quick-link"><div class="icon">🏪</div><div class="name">库存查询</div></a>
+            <a href="/tenants" class="quick-link" id="tenantQuickLink" style="display:none"><div class="icon">🏥</div><div class="name">诊所租户</div></a>
         </div>
     </div>
     <script>
+        var ROLE_PLATFORM_ADMIN = 1;
         // 显示当前用户
         var xhr = new XMLHttpRequest();
         xhr.open('GET', '/api/user/current', true);
@@ -133,7 +140,9 @@
             if (xhr.status === 200) {
                 var resp = JSON.parse(xhr.responseText);
                 if (resp.code === 200) {
-                    document.getElementById('userInfo').textContent = '👤 ' + resp.data.name + ' (' + resp.data.phone + ')';
+                    if (resp.data.role === ROLE_PLATFORM_ADMIN) {
+                        document.getElementById('tenantQuickLink').style.display = 'flex';
+                    }
                 } else {
                     window.location.href = '/login';
                 }
@@ -154,5 +163,6 @@
             }
         }).catch(function(){});
     </script>
+    <script src="/js/session-ui.js"></script>
 </body>
 </html>

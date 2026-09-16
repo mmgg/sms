@@ -6,8 +6,11 @@ import com.clwu.sms.entity.SellingPrice;
 import com.clwu.sms.enums.StatusEnum;
 import com.clwu.sms.mapper.SellingPricingMapper;
 import com.clwu.sms.service.SellingPricingService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -18,6 +21,9 @@ import java.util.List;
  **/
 @Service
 public class SellingPriceServiceImpl implements SellingPricingService {
+
+    private static final Logger log = LoggerFactory.getLogger(SellingPriceServiceImpl.class);
+
     @Autowired
     private SellingPricingMapper sellingPricingMapper;
     /**
@@ -26,12 +32,14 @@ public class SellingPriceServiceImpl implements SellingPricingService {
      * @param sellingPrice
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void addSellingPrice(SellingPrice sellingPrice) {
         UpdateWrapper<SellingPrice> updateWrapper = new UpdateWrapper<>();
         updateWrapper.set("status", StatusEnum.US_DISABLE.getCode());
         updateWrapper.eq("physic", sellingPrice.getPhysic());
         sellingPricingMapper.update(null, updateWrapper);
         sellingPricingMapper.insert(sellingPrice);
+        log.info("新增有效售价: physicId={}, price={}", sellingPrice.getPhysic(), sellingPrice.getPrice());
     }
 
     /**
@@ -40,17 +48,13 @@ public class SellingPriceServiceImpl implements SellingPricingService {
      * @param id
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void delSellingPrice(Long id) {
-        UpdateWrapper<SellingPrice> updateWrapper = new UpdateWrapper<>();
-        updateWrapper.eq("id", id);
-        updateWrapper.ne("status", StatusEnum.US_DISABLE.getCode());
-        updateWrapper.set("status", StatusEnum.US_DISABLE.getCode());
-        if (sellingPricingMapper.update(null, updateWrapper) > 0) {
-            return;
-        } else {
-            // todo 如果原来已经是不可用状态了 打印日志 抛出异常
+        if (id == null || id <= 0L) {
             return;
         }
+        sellingPricingMapper.deleteById(id);
+        log.info("逻辑删除售价记录: sellingPriceId={}", id);
     }
 
     /**
@@ -59,15 +63,15 @@ public class SellingPriceServiceImpl implements SellingPricingService {
      * @param sellingPrice
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void updSellingPrice(SellingPrice sellingPrice) {
         if (null == sellingPrice.getId() || sellingPrice.getId() <= 0L) {
             return;
         }
-        UpdateWrapper<SellingPrice> updateWrapper = null;
-        if (sellingPrice.getId() > 0L) {
-            updateWrapper = new UpdateWrapper<>();
-            updateWrapper.eq("id", sellingPrice.getId());
-        }
+        UpdateWrapper<SellingPrice> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.eq("id", sellingPrice.getId());
+        sellingPrice.setTenantId(null);
+        sellingPrice.setDeleted(null);
         sellingPricingMapper.update(sellingPrice, updateWrapper);
     }
 
@@ -100,6 +104,7 @@ public class SellingPriceServiceImpl implements SellingPricingService {
     @Override
     public List<SellingPrice> listSellingPrice() {
         QueryWrapper<SellingPrice> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("status", StatusEnum.US_ENABLED.getCode());
         return sellingPricingMapper.selectList(queryWrapper);
     }
 }

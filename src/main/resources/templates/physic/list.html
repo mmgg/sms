@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="zh-CN">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>药品/耗材管理</title>
+<link rel="stylesheet" href="/css/session-ui.css">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f0f2f5;display:flex;min-height:100vh}
 .sidebar{width:220px;background:#001529;color:#fff;position:fixed;top:0;left:0;bottom:0;display:flex;flex-direction:column}
@@ -41,16 +42,23 @@ td{padding:12px 16px;font-size:13px;color:#333;border-bottom:1px solid #f0f0f0}t
 <a href="/prescription">📋 处方管理</a><a href="/inventory">🏪 库存查询</a>
 <a href="/selling-price">💰 售价管理</a>
 <a href="/report">📈 报表统计</a><a href="/user">👥 用户管理</a>
-</nav></aside>
+</nav>
+<div class="session-user-box">
+<span class="session-user-name">当前用户：<span data-current-user-name>加载中...</span></span>
+<span class="session-user-role" data-current-user-role></span>
+<a href="#" class="session-logout" data-logout>退出登录</a>
+</div>
+</aside>
 <div class="main">
 <div class="page-header"><h2>💊 药品/耗材管理</h2><button class="btn btn-primary" onclick="openAddModal()">+ 新增</button></div>
 <div class="search-bar">
 <input id="sName" placeholder="名称搜索"><select id="sType"><option value="0">全部类型</option><option value="10">药品</option><option value="20">耗材</option></select>
+<input id="sBarcode" placeholder="扫码/输入条码后回车" onkeydown="scanBarcode(event)">
 <button class="btn btn-primary" onclick="loadList()">🔍 搜索</button>
 </div>
 <div class="table-card"><table>
-<thead><tr><th>ID</th><th>名称</th><th>类型</th><th>别名</th><th>厂商</th><th>单位</th><th>状态</th><th>操作</th></tr></thead>
-<tbody id="dataTable"><tr class="empty-row"><td colspan="8">加载中...</td></tr></tbody>
+<thead><tr><th>ID</th><th>名称</th><th>条码</th><th>类型</th><th>别名</th><th>厂商</th><th>单位</th><th>状态</th><th>操作</th></tr></thead>
+<tbody id="dataTable"><tr class="empty-row"><td colspan="9">加载中...</td></tr></tbody>
 </table></div></div>
 <div class="modal-overlay" id="formModal"><div class="modal">
 <div class="modal-header"><h3 id="modalTitle">新增</h3><button class="modal-close" onclick="closeModal()">×</button></div>
@@ -62,6 +70,7 @@ td{padding:12px 16px;font-size:13px;color:#333;border-bottom:1px solid #f0f0f0}t
 <div class="form-group"><label>单位</label><select id="fUnit"><option value="0">未选择</option><option value="1">个</option><option value="2">瓶</option><option value="3">盒</option><option value="4">袋</option><option value="11">毫克</option><option value="12">克</option><option value="13">千克</option><option value="21">毫升</option><option value="22">升</option></select></div>
 </div>
 <div class="form-group"><label>别名</label><input id="fAlias" placeholder="请输入别名"></div>
+<div class="form-group"><label>条码</label><input id="fBarcode" placeholder="扫码或输入条码"></div>
 <div class="form-group"><label>厂商</label><input id="fManufacturer" placeholder="请输入生产厂商"></div>
 <div class="form-group"><label>状态</label>
 <select id="fStatus" style="color:#52c41a;font-weight:500;background:#fff">
@@ -81,27 +90,42 @@ function statusText(s){return s===1?"正常":s===0?"待设置":s===-1?"停用":s
 function showToast(m,t){var e=document.getElementById('toast');e.textContent=m;e.className='toast '+t;e.style.display='block';setTimeout(function(){e.style.display='none'},2500);}
 function loadList(){
   var n=document.getElementById('sName').value;
-  document.getElementById('dataTable').innerHTML='<tr class="empty-row"><td colspan="8">加载中...</td></tr>';
+  document.getElementById('dataTable').innerHTML='<tr class="empty-row"><td colspan="9">加载中...</td></tr>';
   fetch('/physic/list?name='+encodeURIComponent(n)).then(function(r){return r.json();}).then(function(d){
     var t=document.getElementById('dataTable');
-    if(!d||d.length===0){t.innerHTML='<tr class="empty-row"><td colspan="8">暂无数据</td></tr>';return;}
+    if(!d||d.length===0){t.innerHTML='<tr class="empty-row"><td colspan="9">暂无数据</td></tr>';return;}
     t.innerHTML=d.map(function(p){
       var typeText=p.type===10?'药品':'耗材';
       var unitMap={0:'-',1:'个',2:'瓶',3:'盒',4:'袋',11:'毫克',12:'克',13:'千克',21:'毫升',22:'升'};
       var unitText=unitMap[p.unit]||'-';
       var stxt=statusText(p.status);
       var sc=statusColor(p.status);
-      return '<tr><td>'+p.id+'</td><td>'+h(p.name)+'</td><td>'+typeText+'</td><td>'+h(p.alias)+'</td><td>'+h(p.manufacturer)+'</td><td>'+unitText+'</td><td style="color:'+sc+'">'+stxt+'</td><td class="action-btns"><button class="btn btn-sm btn-edit" onclick="openEdit('+p.id+')">编辑</button><button class="btn btn-sm btn-danger" onclick="del('+p.id+')">删除</button></td></tr>';
+      return '<tr><td>'+p.id+'</td><td>'+h(p.name)+'</td><td>'+h(p.barcode||'')+'</td><td>'+typeText+'</td><td>'+h(p.alias)+'</td><td>'+h(p.manufacturer)+'</td><td>'+unitText+'</td><td style="color:'+sc+'">'+stxt+'</td><td class="action-btns"><button class="btn btn-sm btn-edit" onclick="openEdit('+p.id+')">编辑</button><button class="btn btn-sm btn-danger" onclick="del('+p.id+')">删除</button></td></tr>';
     }).join('');
-  }).catch(function(){document.getElementById('dataTable').innerHTML='<tr class="empty-row"><td colspan="8">加载失败</td></tr>';});
+  }).catch(function(){document.getElementById('dataTable').innerHTML='<tr class="empty-row"><td colspan="9">加载失败</td></tr>';});
+}
+function scanBarcode(event){
+  if(event.key!=='Enter') return;
+  event.preventDefault();
+  var barcode=event.target.value.trim();
+  if(!barcode){showToast('请扫描或输入条码','error');return;}
+  fetch('/physic/getByBarcode?barcode='+encodeURIComponent(barcode))
+    .then(function(r){return r.json();})
+    .then(function(p){
+      if(!p||p.code){showToast((p&&p.msg)||'未找到对应药品','error');return;}
+      showToast('已找到：'+p.name,'success');
+      openEdit(p.id);
+    })
+    .catch(function(){showToast('条码查询失败','error');});
 }
 function h(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function openAddModal(){document.getElementById('modalTitle').textContent='新增药品/耗材';document.getElementById('editId').value='';document.getElementById('fName').value='';document.getElementById('fType').value='10';document.getElementById('fUnit').value='1';document.getElementById('fAlias').value='';document.getElementById('fManufacturer').value='';
+function openAddModal(){document.getElementById('modalTitle').textContent='新增药品/耗材';document.getElementById('editId').value='';document.getElementById('fName').value='';document.getElementById('fType').value='10';document.getElementById('fUnit').value='1';document.getElementById('fAlias').value='';document.getElementById('fBarcode').value=document.getElementById('sBarcode').value.trim();document.getElementById('fManufacturer').value='';
   document.getElementById('fStatus').value='1';document.getElementById('formModal').classList.add('show');}
 function openEdit(id){fetch('/physic/getById?id='+id).then(function(r){return r.json();}).then(function(p){
   document.getElementById('modalTitle').textContent='编辑药品/耗材';document.getElementById('editId').value=p.id;
   document.getElementById('fName').value=p.name;document.getElementById('fType').value=p.type;
   document.getElementById('fUnit').value=p.unit;document.getElementById('fAlias').value=p.alias||'';
+  document.getElementById('fBarcode').value=p.barcode||'';
   document.getElementById('fManufacturer').value=p.manufacturer||'';
   document.getElementById('fStatus').value=p.status!=null?String(p.status):'1';
   document.getElementById('formModal').classList.add('show');
@@ -112,15 +136,18 @@ function save(){
   var name=document.getElementById('fName').value.trim();
   if(!name){showToast('请输入名称','error');return;}
   var body={name:name,type:parseInt(document.getElementById('fType').value),unit:parseInt(document.getElementById('fUnit').value),
-    alias:document.getElementById('fAlias').value.trim(),manufacturer:document.getElementById('fManufacturer').value.trim(),status:parseInt(document.getElementById('fStatus').value)};
+    alias:document.getElementById('fAlias').value.trim(),barcode:document.getElementById('fBarcode').value.trim(),manufacturer:document.getElementById('fManufacturer').value.trim(),status:parseInt(document.getElementById('fStatus').value)};
   if(id){body.id=parseInt(id);}
   fetch(id?'/physic/upd':'/physic/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(resp){
-      showToast(id?'更新成功':'添加成功','success');closeModal();loadList();
+      if(resp.code===200||resp.code===undefined){showToast(id?'更新成功':'添加成功','success');closeModal();loadList();}
+      else{showToast(resp.msg||'操作失败','error');}
     }).catch(function(){showToast('操作失败','error');});
 }
 function del(id){if(!confirm('确定删除？'))return;
   fetch('/physic/del?id='+id,{method:'POST'}).then(function(r){return r.json();}).then(function(r){showToast('删除成功','success');loadList();}).catch(function(){showToast('删除失败','error');});
 }
 loadList();
-</script></body></html>
+</script>
+<script src="/js/session-ui.js"></script>
+</body></html>

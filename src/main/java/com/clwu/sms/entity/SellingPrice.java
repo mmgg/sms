@@ -16,7 +16,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class SellingPrice {
+public class SellingPrice extends BaseTenantEntity {
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
@@ -32,5 +32,4 @@ public class SellingPrice {
 
     private Long updateUser;
 }
-
 

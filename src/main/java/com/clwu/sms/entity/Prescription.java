@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Prescription {
+public class Prescription extends BaseTenantEntity {
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 

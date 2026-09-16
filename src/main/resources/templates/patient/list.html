@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>患者管理</title>
+<link rel="stylesheet" href="/css/session-ui.css">
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:#f0f2f5; display:flex; min-height:100vh; }
@@ -22,6 +23,7 @@ body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif
 .btn-danger { background:#ff4d4f; color:#fff; }
 .btn-sm { padding:4px 12px; font-size:12px; }
 .btn-edit { background:#52c41a; color:#fff; }
+.btn-history { background:#722ed1; color:#fff; }
 .search-bar { background:#fff; padding:16px; border-radius:8px; margin-bottom:16px; display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; box-shadow:0 1px 4px rgba(0,0,0,0.05); }
 .search-bar label { font-size:13px; color:#666; margin-bottom:4px; display:block; }
 .search-bar input { padding:8px 12px; border:1px solid #d9d9d9; border-radius:6px; font-size:13px; width:160px; }
@@ -36,6 +38,7 @@ tr:hover td { background:#f5f7fa; }
 .modal-overlay { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.45); z-index:1000; justify-content:center; align-items:center; }
 .modal-overlay.show { display:flex; }
 .modal { background:#fff; border-radius:8px; width:500px; max-height:90vh; overflow-y:auto; box-shadow:0 4px 24px rgba(0,0,0,0.15); }
+.modal.history-modal { width:860px; }
 .modal-header { padding:16px 24px; border-bottom:1px solid #f0f0f0; display:flex; justify-content:space-between; align-items:center; }
 .modal-header h3 { font-size:16px; color:#333; }
 .modal-close { background:none; border:none; font-size:20px; cursor:pointer; color:#999; }
@@ -53,6 +56,16 @@ tr:hover td { background:#f5f7fa; }
 .toast.error { background:#ff4d4f; }
 @keyframes slideIn { from { transform:translateX(100%); opacity:0; } to { transform:translateX(0); opacity:1; } }
 .empty-row td { text-align:center; color:#999; padding:40px; }
+.history-patient { background:#fafafa; border:1px solid #f0f0f0; border-radius:6px; padding:12px; margin-bottom:16px; font-size:13px; line-height:1.8; }
+.history-record { border:1px solid #e8e8e8; border-radius:6px; padding:12px; margin-bottom:14px; }
+.history-record-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; color:#555; font-size:13px; }
+.history-record th,.history-record td { padding:6px 8px; font-size:12px; }
+.history-record .btn { padding:4px 10px; font-size:12px; }
+.history-list-item { border:1px solid #e8e8e8; border-radius:6px; padding:12px 14px; margin-bottom:10px; cursor:pointer; transition:all .2s; }
+.history-list-item:hover { border-color:#1890ff; background:#f5faff; }
+.history-list-main { display:flex; justify-content:space-between; gap:16px; font-size:13px; color:#555; }
+.history-list-comment { margin-top:8px; color:#777; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.history-detail-actions { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
 </style>
 </head>
 <body>
@@ -69,6 +82,11 @@ tr:hover td { background:#f5f7fa; }
 <a href="/report">📈 报表统计</a>
 <a href="/user">👥 用户管理</a>
 </nav>
+<div class="session-user-box">
+<span class="session-user-name">当前用户：<span data-current-user-name>加载中...</span></span>
+<span class="session-user-role" data-current-user-role></span>
+<a href="#" class="session-logout" data-logout>退出登录</a>
+</div>
 </aside>
 <div class="main">
 <div class="page-header">
@@ -114,6 +132,14 @@ tr:hover td { background:#f5f7fa; }
 </div>
 </div>
 </div>
+<div class="modal-overlay" id="historyModal">
+<div class="modal history-modal">
+<div class="modal-header"><h3 id="historyTitle">历史就诊记录</h3><button class="modal-close" onclick="closeHistory()">×</button></div>
+<div class="modal-body" id="historyBody"></div>
+<div class="modal-footer"><button class="btn-cancel" onclick="closeHistory()">关闭</button></div>
+</div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -153,6 +179,7 @@ function renderTable() {
     var bday = p.birthday ? p.birthday.substring(0,10) : '-';
     return '<tr><td>'+p.id+'</td><td>'+htmlEscape(p.name)+'</td><td>'+htmlEscape(p.phone)+'</td><td>'+bday+'</td><td>'+htmlEscape(p.addr||'')+'</td><td style="color:'+sc+'">'+st+'</td><td class="action-btns">' +
       '<button class="btn btn-sm btn-edit" onclick="openEditModal('+p.id+')">编辑</button>' +
+      '<button class="btn btn-sm btn-history" onclick="showHistory('+p.id+')">就诊记录</button>' +
       '<button class="btn btn-sm btn-danger" onclick="delPatient('+p.id+')">删除</button></td></tr>';
   }).join('');
 }
@@ -186,6 +213,67 @@ function openEditModal(id) {
 }
 
 function closeModal() { document.getElementById('patientModal').classList.remove('show'); }
+
+function closeHistory() { document.getElementById('historyModal').classList.remove('show'); }
+
+var currentHistoryData=null;
+
+function showHistory(id) {
+  fetch('/patient/history?id='+id)
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      if(!data || data.code){ showToast((data&&data.msg)||'历史记录加载失败','error'); return; }
+      currentHistoryData=data;
+      renderHistoryList();
+      document.getElementById('historyModal').classList.add('show');
+    })
+    .catch(function(){ showToast('历史记录加载失败','error'); });
+}
+
+function renderHistoryList() {
+  var p=currentHistoryData.patient||{};
+  document.getElementById('historyTitle').textContent='历史就诊记录 - '+(p.name||'');
+  var html='<div class="history-patient"><strong>患者：</strong>'+htmlEscape(p.name||'-')+
+    '　电话：'+htmlEscape(p.phone||'-')+
+    '　出生日期：'+(p.birthday?p.birthday.substring(0,10):'-')+
+    '<br><strong>地址：</strong>'+htmlEscape(p.addr||'-')+'</div>';
+  var records=currentHistoryData.records||[];
+  if(!records.length){
+    html+='<p style="text-align:center;color:#999;padding:24px">暂无历史就诊记录</p>';
+  }else{
+    records.forEach(function(record,index){
+      html+='<div class="history-list-item" onclick="showHistoryDetail('+index+')">'+
+        '<div class="history-list-main"><span>就诊时间：'+(record.visitTime?record.visitTime.substring(0,19):'-')+
+        '</span><span>开方医生：'+htmlEscape(record.doctorName||'-')+
+        '</span><span>处方号：#'+record.prescriptionId+'</span></div>'+
+        '<div class="history-list-comment">医嘱：'+htmlEscape(record.comments||'-')+'</div></div>';
+    });
+  }
+  document.getElementById('historyBody').innerHTML=html;
+}
+
+function showHistoryDetail(index) {
+  var records=currentHistoryData.records||[];
+  var record=records[index];
+  if(!record){return;}
+  var p=currentHistoryData.patient||{};
+  document.getElementById('historyTitle').textContent='处方详情 #'+record.prescriptionId;
+  var html='<div class="history-detail-actions">'+
+    '<button class="btn" style="border:1px solid #d9d9d9;background:#fff" onclick="renderHistoryList()">返回就诊记录</button>'+
+    '<button class="btn btn-primary" onclick="window.open(\'/prescription/print?id='+record.prescriptionId+'\',\'_blank\')">打印处方</button></div>'+
+    '<div class="history-patient"><strong>患者：</strong>'+htmlEscape(p.name||'-')+
+    '　就诊时间：'+(record.visitTime?record.visitTime.substring(0,19):'-')+
+    '<br><strong>开方医生：</strong>'+htmlEscape(record.doctorName||'-')+
+    '<br><strong>医嘱：</strong>'+htmlEscape(record.comments||'-')+'</div>'+
+    '<table><thead><tr><th>药品</th><th>数量</th><th>单价</th><th>小计</th></tr></thead><tbody>';
+  (record.items||[]).forEach(function(item){
+    html+='<tr><td>'+htmlEscape(item.physicName)+'</td><td>'+(item.quantity||0)+htmlEscape(item.unitName||'')+
+      '</td><td>￥'+(Number(item.unitPrice)||0).toFixed(2)+'</td><td>￥'+(Number(item.amount)||0).toFixed(2)+'</td></tr>';
+  });
+  html+='</tbody></table><div style="text-align:right;margin-top:12px;font-weight:600;font-size:15px">合计：￥'+
+    (Number(record.totalAmount)||0).toFixed(2)+'</div>';
+  document.getElementById('historyBody').innerHTML=html;
+}
 
 function savePatient() {
   var id = document.getElementById('editId').value;
@@ -224,5 +312,6 @@ function delPatient(id) {
 
 loadPatients();
 </script>
+<script src="/js/session-ui.js"></script>
 </body>
 </html>

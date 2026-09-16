@@ -24,4 +24,16 @@ public enum PhysicTypeEnum {
     public String getDesc() {
         return desc;
     }
+
+    public static PhysicTypeEnum findByCode(Integer code) {
+        if (code == null) {
+            return null;
+        }
+        for (PhysicTypeEnum type : values()) {
+            if (type.code == code) {
+                return type;
+            }
+        }
+        return null;
+    }
 }

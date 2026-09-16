@@ -14,9 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import javax.validation.constraints.Min;
 import javax.servlet.http.HttpSession;
 import javax.validation.constraints.NotNull;
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Collections;
 import com.clwu.sms.utils.StringUtil;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,8 +35,6 @@ public class PrescriptionController {
     private PatientService patientService;
     @Autowired
     private PhysicService physicService;
-    @Autowired
-    private PurchaseDetailService parchaseDetailService;
     @Autowired
     private SellingPricingService sellingPricingService;
     @Autowired
@@ -124,34 +120,19 @@ public class PrescriptionController {
         Patient patient = patientService.findPatientById(perscription.getPatient());
         List<PrescriptionPhysic> perscriptionPhysics =
                 perscriptionPhysicService.findPrescriptionPhysic(id, StatusEnum.US_ENABLED.getCode());
-        BigDecimal ptCost = new BigDecimal("0.0");
-        BigDecimal ptInCome = new BigDecimal("0.0");
-
         List<PrescriptionPhysicDetailVo> perscriptionPhysicDetailVos = new ArrayList<>(perscriptionPhysics.size());
         for(PrescriptionPhysic perscriptionPhysic: perscriptionPhysics) {
             PrescriptionPhysicDetailVo perscriptionPhysicDetailVo = new PrescriptionPhysicDetailVo();
             Physic physic = physicService.findPhysicById(perscriptionPhysic.getPhysic());
             SellingPrice sellingPrice = sellingPricingService.findSellingPriceById(perscriptionPhysic.getSelling());
-            ptInCome = ptInCome.add(sellingPrice.getPrice().multiply(new BigDecimal(perscriptionPhysic.getNum())));
             perscriptionPhysicDetailVo.setPhysic(physic);
             perscriptionPhysicDetailVo.setNum(perscriptionPhysic.getNum());
             perscriptionPhysicDetailVo.setSellingPrice(sellingPrice);
-            List<PurchaseDetail> parchaseDetails = parchaseDetailService.findPurchaseDetailByPPid(
-                    perscriptionPhysic.getId(), StatusEnum.US_OCCUPY.getCode());
-            BigDecimal pdCost = new BigDecimal("0.0");
-            for(PurchaseDetail parchaseDetail: parchaseDetails) {
-                pdCost = pdCost.add(parchaseDetail.getBuyingPrice());
-            }
-            ptCost = ptCost.add(pdCost);
-            perscriptionPhysicDetailVo.setPurchaseDetails(parchaseDetails);
-            perscriptionPhysicDetailVo.setProfit(sellingPrice.getPrice().multiply(
-                    new BigDecimal(perscriptionPhysic.getNum())).subtract(pdCost));
             perscriptionPhysicDetailVos.add(perscriptionPhysicDetailVo);
         }
         perscriptionDetailVo.setPrescription(perscription);
         perscriptionDetailVo.setPatient(patient);
         perscriptionDetailVo.setPrescriptionPhysicDetailVos(perscriptionPhysicDetailVos);
-        perscriptionDetailVo.setProfit(ptInCome.subtract(ptCost));
         return perscriptionDetailVo;
 
     }

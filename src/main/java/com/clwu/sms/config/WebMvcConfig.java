@@ -22,5 +22,13 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/favicon.ico",
                         "/error"
                 );
+        registry.addInterceptor(new AdminInterceptor())
+                .addPathPatterns(
+                        "/user/list",
+                        "/user/add",
+                        "/user/del",
+                        "/user/upd",
+                        "/user/reset-pwd"
+                );
     }
 }

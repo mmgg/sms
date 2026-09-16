@@ -1,5 +1,6 @@
 <!DOCTYPE html><html xmlns:th="http://www.thymeleaf.org" lang="zh-CN">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>处方管理</title>
+<link rel="stylesheet" href="/css/session-ui.css">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f0f2f5;display:flex;min-height:100vh}
 .sidebar{width:220px;background:#001529;color:#fff;position:fixed;top:0;left:0;bottom:0;display:flex;flex-direction:column}
@@ -39,7 +40,13 @@ td{padding:12px 16px;font-size:13px;color:#333;border-bottom:1px solid #f0f0f0}t
 <a href="/purchase">📦 进货管理</a><a href="/prescription" class="active">📋 处方管理</a>
 <a href="/inventory">🏪 库存查询</a>
 <a href="/selling-price">💰 售价管理</a><a href="/report">📈 报表统计</a><a href="/user">👥 用户管理</a>
-</nav></aside>
+</nav>
+<div class="session-user-box">
+<span class="session-user-name">当前用户：<span data-current-user-name>加载中...</span></span>
+<span class="session-user-role" data-current-user-role></span>
+<a href="#" class="session-logout" data-logout>退出登录</a>
+</div>
+</aside>
 <div class="main">
 <div class="page-header"><h2>📋 处方管理</h2><button class="btn btn-primary" onclick="openNewRx()">+ 新处方</button></div>
 <div class="search-bar">
@@ -69,7 +76,8 @@ td{padding:12px 16px;font-size:13px;color:#333;border-bottom:1px solid #f0f0f0}t
 <div class="form-group" style="border-top:1px solid #f0f0f0;padding-top:16px">
 <label>添加药品/耗材</label>
 <div class="inline-add">
-<input id="rxPhysicSearch" placeholder="搜索药品名称" oninput="searchPhysic()">
+<input id="rxPhysicSearch" placeholder="搜索药品名称" oninput="searchPhysic()" onkeydown="selectSinglePhysic(event)">
+<input id="rxScanBarcode" placeholder="扫码枪扫码后回车" onkeydown="scanPhysicBarcode(event)">
 <input id="rxPhysicQty" type="number" min="1" value="1" style="width:70px;flex:none">
 <button class="btn btn-sm btn-success" onclick="addPhysicItem()">添加</button>
 </div>
@@ -89,11 +97,11 @@ td{padding:12px 16px;font-size:13px;color:#333;border-bottom:1px solid #f0f0f0}t
 <div class="modal-overlay" id="detailModal"><div class="modal">
 <div class="modal-header"><h3 id="detailTitle">处方详情</h3><button class="modal-close" onclick="closeDetail()">×</button></div>
 <div class="modal-body" id="detailBody"></div>
-<div class="modal-footer"><button class="btn-cancel" onclick="closeDetail()">关闭</button></div></div></div>
+<div class="modal-footer"><button class="btn btn-primary" id="detailPrintBtn">打印处方</button><button class="btn-cancel" onclick="closeDetail()">关闭</button></div></div></div>
 
 <div class="toast" id="toast"></div>
 <script>
-var rxPhysicItems=[],patients=[],physics=[],selectedPatient=null;
+var rxPhysicItems=[],patients=[],physics=[],selectedPatient=null,selectedPhysicId=null;
 function statusText(s){return s===1?"正常":s===0?"待设置":s===-1?"停用":s===2?"占用":"未知";}function statusColor(s){return s===1?"#52c41a":s===0?"#faad14":s===-1?"#ff4d4f":s===2?"#1890ff":"#999";}
 function ajaxFetch(url,opts){opts=opts||{};opts.credentials=opts.credentials||"same-origin";opts.headers=opts.headers||{};opts.headers["X-Requested-With"]="XMLHttpRequest";return fetch(url,opts).then(function(r){if(r.status===401){window.location.href="/login";throw new Error("未登录");}return r;});}
 function showToast(m,t){var e=document.getElementById('toast');e.textContent=m;e.className='toast '+t;e.style.display='block';setTimeout(function(){e.style.display='none'},2500);}
@@ -112,7 +120,7 @@ function loadRx(){
     if(!d||d.length===0){t.innerHTML='<tr class="empty-row"><td colspan="7">暂无数据</td></tr>';return;}
     t.innerHTML=d.map(function(rx){
       var st=statusText(rx.status);var sc=statusColor(rx.status);
-      return '<tr><td>'+rx.id+'</td><td>'+h(rx.patientName)+'</td><td>'+h(rx.userName)+'</td><td>'+h(rx.comments||'').substring(0,30)+'</td><td>'+(rx.createTime?rx.createTime.substring(0,19):'-')+'</td><td style="color:'+sc+'">'+st+'</td><td class="action-btns"><button class="btn btn-sm btn-edit" onclick="detailRx('+rx.id+')">详情</button><button class="btn btn-sm btn-danger" onclick="delRx('+rx.id+')">删除</button></td></tr>';
+      return '<tr><td>'+rx.id+'</td><td>'+h(rx.patientName)+'</td><td>'+h(rx.userName)+'</td><td>'+h(rx.comments||'').substring(0,30)+'</td><td>'+(rx.createTime?rx.createTime.substring(0,19):'-')+'</td><td style="color:'+sc+'">'+st+'</td><td class="action-btns"><button class="btn btn-sm btn-edit" onclick="detailRx('+rx.id+')">详情</button><button class="btn btn-sm btn-success" onclick="printRx('+rx.id+')">打印</button><button class="btn btn-sm btn-danger" onclick="delRx('+rx.id+')">删除</button></td></tr>';
     }).join('');
   }).catch(function(){showToast('加载处方列表失败','error');});
 }
@@ -120,6 +128,7 @@ function h(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g
 function delRx(id){if(!confirm('确定删除该处方？'))return;
   ajaxFetch('/prescription/del?id='+id,{method:'POST'}).then(r=>r.json()).then(r=>{showToast('删除成功','success');loadRx();}).catch(()=>showToast('删除失败','error'));
 }
+function printRx(id){window.open('/prescription/print?id='+id,'_blank');}
 function detailRx(id){
   ajaxFetch('/prescription/getDetailById?id='+id).then(function(r){return r.json();}).then(function(d){
     if(!d){sToast('获取详情失败','error');return;}
@@ -127,21 +136,21 @@ function detailRx(id){
     var cc=d.prescription?d.prescription.comments:'';
     var ct=d.prescription?d.prescription.createTime:'';
     var items=d.prescriptionPhysicDetailVos||[];
-    var dp=d.profit||0;
     var html='<div class="form-group"><label>患者</label><div>'+pn+'</div></div>';
     if(cc)html+='<div class="form-group"><label>医嘱</label><div>'+cc+'</div></div>';
     html+='<div class="form-group"><label>创建时间</label><div>'+(ct?ct.substring(0,19):'-')+'</div></div><div class="form-group"><label>药品明细</label></div>';
     if(items.length){
-      html+='<table style="width:100%;border-collapse:collapse"><thead style="background:#fafafa"><tr><th style="padding:8px 10px;text-align:left;font-size:12px;color:#666;border-bottom:1px solid #f0f0f0">药品</th><th style="padding:8px 10px;text-align:left;font-size:12px;color:#666;border-bottom:1px solid #f0f0f0">数量</th><th style="padding:8px 10px;text-align:left;font-size:12px;color:#666;border-bottom:1px solid #f0f0f0">售价</th><th style="padding:8px 10px;text-align:left;font-size:12px;color:#666;border-bottom:1px solid #f0f0f0">利润</th></tr></thead><tbody>';
+      html+='<table style="width:100%;border-collapse:collapse"><thead style="background:#fafafa"><tr><th style="padding:8px 10px;text-align:left;font-size:12px;color:#666;border-bottom:1px solid #f0f0f0">药品</th><th style="padding:8px 10px;text-align:left;font-size:12px;color:#666;border-bottom:1px solid #f0f0f0">数量</th><th style="padding:8px 10px;text-align:left;font-size:12px;color:#666;border-bottom:1px solid #f0f0f0">单价</th><th style="padding:8px 10px;text-align:left;font-size:12px;color:#666;border-bottom:1px solid #f0f0f0">小计</th></tr></thead><tbody>';
       for(var i=0;i<items.length;i++){
         var dn=items[i].physic?items[i].physic.name:'未知';
-        html+='<tr><td style="padding:8px 10px;font-size:12px;color:#333;border-bottom:1px solid #f0f0f0">'+dn+'</td><td style="padding:8px 10px;font-size:12px;color:#333;border-bottom:1px solid #f0f0f0">'+items[i].num+'</td><td style="padding:8px 10px;font-size:12px;color:#333;border-bottom:1px solid #f0f0f0">'+(items[i].sellingPrice?items[i].sellingPrice.price:'-')+'</td><td style="padding:8px 10px;font-size:12px;color:#333;border-bottom:1px solid #f0f0f0">'+(items[i].profit||0)+'</td></tr>';
+        var unitPrice=items[i].sellingPrice?(Number(items[i].sellingPrice.price)||0):0;
+        html+='<tr><td style="padding:8px 10px;font-size:12px;color:#333;border-bottom:1px solid #f0f0f0">'+dn+'</td><td style="padding:8px 10px;font-size:12px;color:#333;border-bottom:1px solid #f0f0f0">'+items[i].num+'</td><td style="padding:8px 10px;font-size:12px;color:#333;border-bottom:1px solid #f0f0f0">￥'+unitPrice.toFixed(2)+'</td><td style="padding:8px 10px;font-size:12px;color:#333;border-bottom:1px solid #f0f0f0">￥'+(unitPrice*(Number(items[i].num)||0)).toFixed(2)+'</td></tr>';
       }
       html+='</tbody></table>';
     }else{html+='<p style="color:#999;padding:8px 0">暂无药品</p>';}
-    html+='<div class="form-group" style="margin-top:12px;padding-top:12px;border-top:1px solid #f0f0f0"><label>总利润</label><div style="font-size:16px;font-weight:600;color:'+(dp>=0?'#52c41a':'#ff4d4f')+'">'+dp+' 元</div></div>';
     document.getElementById('detailTitle').textContent='处方详情 #'+id;
     document.getElementById('detailBody').innerHTML=html;
+    document.getElementById('detailPrintBtn').onclick=function(){printRx(id);};
     document.getElementById('detailModal').classList.add('show');
   }).catch(function(){sToast('获取详情失败','error');});
 }
@@ -164,26 +173,60 @@ function selectPatient(id,name,phone){
 function searchPhysic(){
   var q=document.getElementById('rxPhysicSearch').value.trim();
   var list=document.getElementById('physicList');
+  selectedPhysicId=null;
   if(!q){list.style.display='none';return;}
   ajaxFetch('/physic/list?name='+encodeURIComponent(q)).then(r=>r.json()).then(d=>{
-    physics=d||[];list.innerHTML=physics.map(function(p){return '<div class="item" onclick="pickPhysic('+p.id+',\''+h(p.name)+'\')">'+h(p.name)+(p.alias?' ('+h(p.alias)+')':'')+'</div>';}).join('');
+    physics=d||[];list.innerHTML=physics.map(function(p){return '<div class="item" onclick="pickPhysic('+p.id+')">'+h(p.name)+(p.alias?' ('+h(p.alias)+')':'')+'</div>';}).join('');
     list.style.display=physics.length?'block':'none';
   }).catch(function(){showToast("请求失败","error");});
 }
-function pickPhysic(id,name){
-  document.getElementById('rxPhysicSearch').value=name;document.getElementById('physicList').style.display='none';
+function pickPhysic(id){
+  var p=physics.find(function(x){return String(x.id)===String(id);});
+  if(!p){showToast('请重新选择药品','error');return;}
+  selectedPhysicId=p.id;
+  document.getElementById('rxPhysicSearch').value=p.name;
+  document.getElementById('physicList').style.display='none';
+}
+function selectSinglePhysic(event){
+  if(event.key!=='Enter'){
+    return;
+  }
+  event.preventDefault();
+  if(physics.length===1){
+    pickPhysic(physics[0].id);
+  }else if(physics.length>1){
+    showToast('请从搜索结果中选择药品','error');
+  }
+}
+function scanPhysicBarcode(event){
+  if(event.key!=='Enter') return;
+  event.preventDefault();
+  var barcode=event.target.value.trim();
+  if(!barcode){showToast('请扫描药品条码','error');return;}
+  ajaxFetch('/physic/getByBarcode?barcode='+encodeURIComponent(barcode))
+    .then(function(r){return r.json();})
+    .then(function(p){
+      if(!p||p.code){showToast((p&&p.msg)||'未找到对应药品','error');return;}
+      physics=[p];
+      selectedPhysicId=p.id;
+      document.getElementById('rxPhysicSearch').value=p.name;
+      document.getElementById('rxScanBarcode').value='';
+      addPhysicItem();
+    })
+    .catch(function(){showToast('扫码查询失败','error');});
 }
 function addPhysicItem(){
   var q=document.getElementById('rxPhysicSearch').value.trim();
   var qty=parseInt(document.getElementById('rxPhysicQty').value)||1;
   if(!q){showToast('请搜索并选择药品','error');return;}
-  var p=physics.find(function(x){return x.name===q;});
+  var p=physics.find(function(x){return String(x.id)===String(selectedPhysicId);});
   if(!p){showToast('请从搜索结果中选择药品','error');return;}
   if(rxPhysicItems.some(function(x){return x.id===p.id;})){showToast('该药品已添加','error');return;}
   ajaxFetch('/inventory/summary').then(function(r){return r.json();}).then(function(st){
     var si=st.find(function(x){return x.physicId==p.id;});var av=si?si.availableQty:0;
     if(qty>av){showToast('库存不足！'+p.name+' 可用: '+av,'error');return;}
     rxPhysicItems.push({id:p.id,name:p.name,qty:qty});renderRxItems();
+    selectedPhysicId=null;
     document.getElementById('rxPhysicSearch').value='';document.getElementById('rxPhysicQty').value='1';
   }).catch(function(){showToast('获取库存信息失败','error');});
 }
@@ -194,7 +237,7 @@ function renderRxItems(){
 }
 function removeItem(i){rxPhysicItems.splice(i,1);renderRxItems();}
 function openNewRx(){
-  selectedPatient=null;rxPhysicItems=[];document.getElementById('rxPatientId').value='';
+  selectedPatient=null;selectedPhysicId=null;rxPhysicItems=[];document.getElementById('rxPatientId').value='';
   document.getElementById('rxPatientSearch').value='';document.getElementById('rxPatientDisplay').style.display='none';
   document.getElementById('rxComments').value='';renderRxItems();document.getElementById('rxModal').classList.add('show');
 }
@@ -219,4 +262,6 @@ function saveRx(){
     }).catch(function(){showToast('获取用户信息失败','error');});
 }
 loadRx();
-</script></body></html>
+</script>
+<script src="/js/session-ui.js"></script>
+</body></html>

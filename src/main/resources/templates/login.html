@@ -82,8 +82,12 @@
         <h1>诊所管理系统</h1>
         <p class="sub">请使用您的账号登录</p>
         <div class="form-group">
+            <label for="tenantCode">诊所编码</label>
+            <input type="text" id="tenantCode" value="default" placeholder="请输入诊所编码" autofocus>
+        </div>
+        <div class="form-group">
             <label for="phone">手机号</label>
-            <input type="text" id="phone" placeholder="请输入手机号" autofocus>
+            <input type="text" id="phone" placeholder="请输入手机号">
         </div>
         <div class="form-group">
             <label for="password">密码</label>
@@ -94,12 +98,13 @@
     </div>
     <script>
         function doLogin() {
+            var tenantCode = document.getElementById('tenantCode').value.trim();
             var phone = document.getElementById('phone').value.trim();
             var password = document.getElementById('password').value.trim();
             var errorEl = document.getElementById('errorMsg');
 
-            if (!phone || !password) {
-                errorEl.textContent = '请输入手机号和密码';
+            if (!tenantCode || !phone || !password) {
+                errorEl.textContent = '请输入诊所编码、手机号和密码';
                 errorEl.classList.add('show');
                 return;
             }
@@ -120,7 +125,9 @@
                 errorEl.textContent = '网络错误，请重试';
                 errorEl.classList.add('show');
             };
-            xhr.send('phone=' + encodeURIComponent(phone) + '&password=' + encodeURIComponent(password));
+            xhr.send('tenantCode=' + encodeURIComponent(tenantCode)
+                    + '&phone=' + encodeURIComponent(phone)
+                    + '&password=' + encodeURIComponent(password));
         }
         document.getElementById('password').addEventListener('keydown', function(e) {
             if (e.key === 'Enter') doLogin();

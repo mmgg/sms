@@ -13,6 +13,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.clwu.sms.exception.BusinessException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -24,6 +26,9 @@ import java.util.List;
  **/
 @Service
 public class PrescriptionServiceImpl implements PrescriptionService {
+
+    private static final Logger log = LoggerFactory.getLogger(PrescriptionServiceImpl.class);
+
     @Autowired
     private PrescriptionMapper perscriptionMapper;
     @Autowired
@@ -53,7 +58,8 @@ public class PrescriptionServiceImpl implements PrescriptionService {
             throw new BusinessException(400, "插入处方参数为null");
         }
         perscriptionMapper.insert(perscription);
-
+        log.info("新增处方: prescriptionId={}, patientId={}, userId={}",
+                perscription.getId(), perscription.getPatient(), perscription.getUser());
     }
 
     /**
@@ -62,10 +68,24 @@ public class PrescriptionServiceImpl implements PrescriptionService {
      * @param id
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void delPrescription(Long id) {
-        UpdateWrapper<Prescription> updateWrapper = new UpdateWrapper<>();
-        updateWrapper.eq("id", id).set("status", StatusEnum.US_DISABLE.getCode());
-        perscriptionMapper.update(null, updateWrapper);
+        if (id == null || id <= 0L) {
+            return;
+        }
+        Prescription prescription = perscriptionMapper.selectById(id);
+        if (prescription == null) {
+            return;
+        }
+
+        List<PrescriptionPhysic> items = prescriptionPhysicService.findPrescriptionPhysic(
+                id, StatusEnum.US_ENABLED.getCode());
+        for (PrescriptionPhysic item : items) {
+            // 先释放库存，再逻辑删除处方药品，保证不会留下孤立占用。
+            prescriptionPhysicService.deleteWithStockRelease(item.getId());
+        }
+        perscriptionMapper.deleteById(id);
+        log.info("删除处方并释放库存: prescriptionId={}, itemCount={}", id, items.size());
     }
 
     /**
@@ -76,6 +96,8 @@ public class PrescriptionServiceImpl implements PrescriptionService {
     @Override
     public void updPrescription(Prescription perscription) {
         if (null != perscription.getId() && perscription.getId() > 0L) {
+            perscription.setTenantId(null);
+            perscription.setDeleted(null);
             perscriptionMapper.updateById(perscription);
         }
     }
@@ -107,6 +129,7 @@ public class PrescriptionServiceImpl implements PrescriptionService {
     public List<Prescription> findPrescriptionById(Long pid, int status, LocalDateTime startTime, LocalDateTime endTime) {
         QueryWrapper<Prescription> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("patient", pid);
+        queryWrapper.eq("status", status);
         queryWrapper.ge("create_time", startTime);
         queryWrapper.le("create_time", endTime);
         return perscriptionMapper.selectList(queryWrapper);
@@ -122,6 +145,7 @@ public class PrescriptionServiceImpl implements PrescriptionService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Long createPrescriptionWithItems(PrescriptionRequest request) {
+        validateCreateRequest(request);
         Prescription prescription = new Prescription();
         prescription.setPatient(request.getPatient());
         prescription.setUser(request.getUser());
@@ -156,7 +180,7 @@ public class PrescriptionServiceImpl implements PrescriptionService {
             // 占用库存（可用→已占用）
             int result = purchaseDetailService.updPurchaseDetailNum(pp.getId(), item.getPhysic(),
                     item.getNum(), StatusEnum.US_ENABLED.getCode(), StatusEnum.US_OCCUPY.getCode());
-            if (result == 0) {
+            if (result != item.getNum()) {
                 Physic physic = physicService.findPhysicById(item.getPhysic());
                 String name = physic != null ? physic.getName() : "未知";
                 throw new BusinessException(500, "占用库存失败: " + name);
@@ -165,8 +189,29 @@ public class PrescriptionServiceImpl implements PrescriptionService {
             // 更新成本/收入
             prescriptionPhysicService.updConstAndIncomeById(pp.getId());
         }
-        
+
+        log.info("创建处方成功: prescriptionId={}, patientId={}, itemCount={}",
+                rxId, request.getPatient(), request.getItems().size());
         return rxId;
+    }
+
+    private void validateCreateRequest(PrescriptionRequest request) {
+        if (request == null) {
+            throw new BusinessException(400, "处方参数不能为空");
+        }
+        if (request.getPatient() == null || request.getPatient() <= 0L
+                || request.getUser() == null || request.getUser() <= 0L) {
+            throw new BusinessException(400, "患者和开方人不能为空");
+        }
+        if (request.getItems() == null || request.getItems().isEmpty()) {
+            throw new BusinessException(400, "处方至少需要一种药品或耗材");
+        }
+        for (PrescriptionRequest.Item item : request.getItems()) {
+            if (item == null || item.getPhysic() == null || item.getPhysic() <= 0L
+                    || item.getNum() == null || item.getNum() <= 0) {
+                throw new BusinessException(400, "处方药品和数量不合法");
+            }
+        }
     }
 
 }

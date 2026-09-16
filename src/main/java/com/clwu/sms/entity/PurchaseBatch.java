@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class PurchaseBatch {
+public class PurchaseBatch extends BaseTenantEntity {
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
 
@@ -29,5 +29,4 @@ public class PurchaseBatch {
 
     private Integer status;
 }
-
 

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>处方笺</title>
+    <style>
+        *{box-sizing:border-box}
+        body{margin:0;background:#eef1f5;color:#111;font-family:"Songti SC","SimSun","Microsoft YaHei",serif}
+        .toolbar{position:sticky;top:0;background:#fff;border-bottom:1px solid #ddd;padding:12px 20px;display:flex;justify-content:flex-end;gap:10px}
+        .toolbar button{padding:8px 20px;border:0;border-radius:4px;background:#1890ff;color:#fff;cursor:pointer}
+        .paper{width:210mm;min-height:297mm;margin:18px auto;background:#fff;padding:16mm 15mm;box-shadow:0 2px 12px rgba(0,0,0,.12)}
+        .clinic{text-align:center;font-size:25px;font-weight:700;letter-spacing:5px}
+        .title{text-align:center;font-size:22px;font-weight:700;letter-spacing:8px;margin:10px 0 16px}
+        .meta{display:flex;justify-content:space-between;font-size:14px;margin:8px 0;border-bottom:1px solid #333;padding-bottom:8px}
+        .patient-line{display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px;font-size:14px;margin:12px 0}
+        table{width:100%;border-collapse:collapse;margin-top:10px}
+        th,td{border:1px solid #333;padding:8px 6px;font-size:13px;vertical-align:middle}
+        th{text-align:center;background:#f7f7f7}
+        th:nth-child(1){width:36%}th:nth-child(2){width:10%}th:nth-child(3){width:15%}th:nth-child(4){width:15%}th:nth-child(5){width:24%}
+        .right{text-align:right}.center{text-align:center}
+        .diagnosis{margin-top:14px;border:1px solid #333;min-height:72px;padding:10px;font-size:14px;line-height:1.8}
+        .total{text-align:right;margin-top:12px;font-size:15px;font-weight:700}
+        .signatures{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-top:36px;font-size:14px}
+        .footer{margin-top:20px;text-align:center;color:#666;font-size:12px}
+        @media print{
+            body{background:#fff}
+            .toolbar{display:none}
+            .paper{margin:0;box-shadow:none;width:auto;min-height:auto}
+            @page{size:A4;margin:12mm}
+        }
+    </style>
+</head>
+<body>
+<div class="toolbar"><button onclick="window.print()">打印处方</button></div>
+<main class="paper">
+    <div class="clinic" th:text="${tenant != null ? tenant.name : '诊所名称'}">诊所名称</div>
+    <div class="title">处 方 笺</div>
+    <div class="meta">
+        <span>处方编号：<span th:text="${prescription.id}">1</span></span>
+        <span>开方日期：<span th:text="${prescriptionTime}">2026-01-01</span></span>
+    </div>
+    <div class="patient-line">
+        <div>患者姓名：<span th:text="${patient != null ? patient.name : '-'}">患者</span></div>
+        <div>年龄：<span th:text="${patientAge}">-</span></div>
+        <div>联系电话：<span th:text="${patient != null ? patient.phone : '-'}">-</span></div>
+    </div>
+    <div class="patient-line">
+        <div style="grid-column:1 / 4">住址：<span th:text="${patient != null ? patient.addr : '-'}">-</span></div>
+    </div>
+    <table>
+        <thead>
+        <tr><th>药品名称</th><th>数量</th><th>单价</th><th>小计</th><th>用法用量</th></tr>
+        </thead>
+        <tbody>
+        <tr th:each="item : ${items}">
+            <td>
+                <span th:text="${item.physicName}">药品</span>
+                <span th:if="${!#strings.isEmpty(item.alias)}" th:text="| (${item.alias})|"></span>
+            </td>
+            <td class="center"><span th:text="${item.quantity}">1</span><span th:text="${item.unitName}"></span></td>
+            <td class="right" th:text="${#numbers.formatDecimal(item.unitPrice, 1, 2)}">0.00</td>
+            <td class="right" th:text="${#numbers.formatDecimal(item.amount, 1, 2)}">0.00</td>
+            <td th:text="${item.usage}">遵医嘱</td>
+        </tr>
+        <tr th:if="${#lists.isEmpty(items)}"><td colspan="5" class="center">暂无处方药品</td></tr>
+        </tbody>
+    </table>
+    <div class="total">合计金额：￥<span th:text="${#numbers.formatDecimal(totalAmount, 1, 2)}">0.00</span></div>
+    <div class="diagnosis"><strong>医嘱：</strong><span th:text="${prescription.comments}">遵医嘱</span></div>
+    <div class="signatures">
+        <div>开方医生：<span th:text="${doctorName}">医生</span></div>
+        <div>审核药师：________________</div>
+        <div>日期：________________</div>
+    </div>
+    <div class="footer">本处方打印件仅供诊疗使用，请按医嘱用药。</div>
+</main>
+</body>
+</html>

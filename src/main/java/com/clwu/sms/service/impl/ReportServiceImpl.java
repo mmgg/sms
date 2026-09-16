@@ -2,6 +2,8 @@ package com.clwu.sms.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.clwu.sms.entity.*;
+import com.clwu.sms.enums.PhysicTypeEnum;
+import com.clwu.sms.enums.StatusEnum;
 import com.clwu.sms.mapper.PrescriptionPhysicMapper;
 import com.clwu.sms.mapper.PrescriptionMapper;
 import com.clwu.sms.mapper.PurchaseDetailMapper;
@@ -39,7 +41,7 @@ public class ReportServiceImpl implements ReportService {
 
     private List<PrescriptionPhysic> getFilteredPP(String startTime, String endTime) {
         QueryWrapper<PrescriptionPhysic> qw = new QueryWrapper<>();
-        qw.eq("status", 1);
+        qw.eq("status", StatusEnum.US_ENABLED.getCode());
         if (StringUtil.isNotEmpty(startTime) || StringUtil.isNotEmpty(endTime)) {
             QueryWrapper<Prescription> pqw = new QueryWrapper<>();
             if (StringUtil.isNotEmpty(startTime)) {
@@ -82,7 +84,7 @@ public class ReportServiceImpl implements ReportService {
                     .physicName(physic != null ? physic.getName() : "未知")
                     .profit(profit)
                     .quantity(quantity)
-                    .typeName(physic != null ? (physic.getType() == 10 ? "药品" : "耗材") : "未知")
+                    .typeName(resolvePhysicTypeName(physic))
                     .build();
             result.add(vo);
         }
@@ -143,7 +145,7 @@ public class ReportServiceImpl implements ReportService {
                     .physicId(physicId)
                     .physicName(physic != null ? physic.getName() : "未知")
                     .quantity(quantity)
-                    .typeName(physic != null ? (physic.getType() == 10 ? "药品" : "耗材") : "未知")
+                    .typeName(resolvePhysicTypeName(physic))
                     .build();
             result.add(vo);
         }
@@ -194,12 +196,7 @@ public class ReportServiceImpl implements ReportService {
 
         List<InventoryStatusVo> result = new ArrayList<>();
         for (Map.Entry<Integer, Long> entry : statusMap.entrySet()) {
-            String name;
-            switch (entry.getKey()) {
-                case 1: name = "可用"; break;
-                case 2: name = "占用"; break;
-                default: name = "其他"; break;
-            }
+            String name = resolveInventoryStatusName(entry.getKey());
             InventoryStatusVo vo = InventoryStatusVo.builder()
                     .status(entry.getKey())
                     .statusName(name)
@@ -208,5 +205,23 @@ public class ReportServiceImpl implements ReportService {
             result.add(vo);
         }
         return result;
+    }
+
+    private String resolvePhysicTypeName(Physic physic) {
+        if (physic == null) {
+            return "未知";
+        }
+        PhysicTypeEnum type = PhysicTypeEnum.findByCode(physic.getType());
+        return type == null ? "未知" : type.getDesc();
+    }
+
+    private String resolveInventoryStatusName(int status) {
+        if (status == StatusEnum.US_ENABLED.getCode()) {
+            return StatusEnum.US_ENABLED.getDesc();
+        }
+        if (status == StatusEnum.US_OCCUPY.getCode()) {
+            return StatusEnum.US_OCCUPY.getDesc();
+        }
+        return "其他";
     }
 }

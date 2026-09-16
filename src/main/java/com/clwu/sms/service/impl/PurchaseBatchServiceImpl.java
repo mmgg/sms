@@ -6,6 +6,8 @@ import com.clwu.sms.entity.PurchaseBatch;
 import com.clwu.sms.enums.StatusEnum;
 import com.clwu.sms.mapper.PurchaseBatchMapper;
 import com.clwu.sms.service.PurchaseBatchService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +21,9 @@ import java.util.List;
  **/
 @Service
 public class PurchaseBatchServiceImpl implements PurchaseBatchService {
+
+    private static final Logger log = LoggerFactory.getLogger(PurchaseBatchServiceImpl.class);
+
     @Autowired
     private PurchaseBatchMapper parchaseBatchMapper;
     /**
@@ -40,13 +45,13 @@ public class PurchaseBatchServiceImpl implements PurchaseBatchService {
      * @param id        进货批次号
      */
     @Override
+    @org.springframework.transaction.annotation.Transactional(rollbackFor = Exception.class)
     public void delPurchaseBatch(Long id) {
         if(null == id || id.compareTo(0L) < 0) {
             return ;
         }
-        UpdateWrapper<PurchaseBatch> updateWrapper = new UpdateWrapper<>();
-        updateWrapper.eq("id", id).set("status", StatusEnum.US_DISABLE.getCode());
-        parchaseBatchMapper.update(null, updateWrapper);
+        parchaseBatchMapper.deleteById(id);
+        log.info("逻辑删除进货批次: batchId={}", id);
     }
 
     /**
@@ -59,6 +64,8 @@ public class PurchaseBatchServiceImpl implements PurchaseBatchService {
         if (null == parchaseBatch || null == parchaseBatch.getId() || parchaseBatch.getId() <= 0L) {
             return;
         }
+        parchaseBatch.setTenantId(null);
+        parchaseBatch.setDeleted(null);
         parchaseBatchMapper.updateById(parchaseBatch);
     }
 

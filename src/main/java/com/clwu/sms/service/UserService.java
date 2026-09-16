@@ -5,7 +5,7 @@ import com.clwu.sms.entity.User;
 import java.util.List;
 
 public interface UserService {
-    List<User> getAllUser(Long tid);
+    List<User> getAllUser();
 
     IPage<User> getUserPage(int pageNum, int pageSize, String name, String phone);
 
@@ -18,7 +18,7 @@ public interface UserService {
     void updUser(User user);
 
     /** 用户登录，成功返回 User 对象，失败返回 null */
-    User login(String phone, String password);
+    User login(String tenantCode, String phone, String password);
 
     /** 设置/修改密码 */
     void setPassword(Long userId, String newPassword);

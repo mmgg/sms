@@ -10,6 +10,7 @@ public interface PhysicService {
     void delePhysic(Long physicId);
     void updPhysic(Physic physic);
     Physic findPhysicById(Long pid);
+    Physic findPhysicByBarcode(String barcode);
     List<Physic> findPhysicByName(String name);
     List<Physic> findPhysicByAlias(String alias);
     List<Physic> findPhysicByManufacturerString(String manufacturer);
