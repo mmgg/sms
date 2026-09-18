@@ -6,6 +6,7 @@ import com.clwu.sms.enums.StatusEnum;
 import com.clwu.sms.service.PhysicService;
 import com.clwu.sms.service.PurchaseDetailService;
 import com.clwu.sms.vo.BatchDetailVo;
+import com.clwu.sms.vo.PurchasePriceHistoryVo;
 import com.clwu.sms.vo.ResultVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -75,5 +76,10 @@ public class PurchaseDetailController {
             result.add(vo);
         }
         return result;
+    }
+
+    @GetMapping("/history")
+    public List<PurchasePriceHistoryVo> history(@RequestParam Long physicId) {
+        return parchaseDetailService.findPurchaseHistory(physicId);
     }
 }

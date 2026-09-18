@@ -3,7 +3,6 @@ package com.clwu.sms.vo;
 import lombok.Builder;
 import lombok.Data;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -19,6 +18,5 @@ public class PatientVisitRecordVo {
     private String doctorName;
     private String comments;
     private Integer itemCount;
-    private BigDecimal totalAmount;
     private List<PatientHistoryItemVo> items;
 }

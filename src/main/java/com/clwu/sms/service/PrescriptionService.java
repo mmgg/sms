@@ -49,4 +49,5 @@ public interface PrescriptionService {
      */
     public List<Prescription> findPrescriptionById(Long pid, int status, LocalDateTime startTime, LocalDateTime endTime);
     Long createPrescriptionWithItems(PrescriptionRequest request);
+    void updatePrescriptionWithItems(Long prescriptionId, PrescriptionRequest request);
 }

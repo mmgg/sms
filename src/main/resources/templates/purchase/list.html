@@ -27,8 +27,8 @@ td{padding:12px 16px;font-size:13px;color:#333;border-bottom:1px solid #f0f0f0}t
 .modal-body{padding:24px}.modal-footer{padding:12px 24px;border-top:1px solid #f0f0f0;display:flex;justify-content:flex-end;gap:8px}
 .modal-footer .btn-cancel{background:#fff;border:1px solid #d9d9d9;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:14px}
 .form-group{margin-bottom:14px}.form-group label{display:block;font-size:13px;color:#666;margin-bottom:5px}
-.form-group input,.form-group select{width:100%;padding:8px 12px;border:1px solid #d9d9d9;border-radius:6px;font-size:13px;box-sizing:border-box}
-.form-group input:focus,.form-group select:focus{outline:none;border-color:#1890ff}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:8px 12px;border:1px solid #d9d9d9;border-radius:6px;font-size:13px;box-sizing:border-box;font-family:inherit}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:#1890ff}
 .form-row{display:flex;gap:12px}.form-row .form-group{flex:1}
 .inline-search{display:flex;gap:8px;align-items:center;margin:8px 0}
 .inline-search input{padding:8px 12px;border:1px solid #d9d9d9;border-radius:6px;font-size:13px;flex:1}
@@ -57,9 +57,16 @@ td{padding:12px 16px;font-size:13px;color:#333;border-bottom:1px solid #f0f0f0}t
 
 <div class="main">
 <div class="page-header"><h2>📦 进货管理</h2><button class="btn btn-primary" onclick="openAdd()">+ 新增批次</button></div>
+<div class="search-bar">
+<div style="position:relative"><label>药品名称</label><input id="historyDrugName" placeholder="输入药品名称" oninput="searchHistoryDrugs()"><div class="search-list" id="historyDrugList"></div></div>
+<button class="btn btn-primary" onclick="loadPurchaseHistory()">查询进货记录</button>
+</div>
+<div class="table-card" id="purchaseHistoryCard" style="display:none;margin-bottom:16px">
+<table><thead><tr><th>批次</th><th>进货单价</th><th>可用数量</th><th>已占用</th><th>总数量</th><th>进货时间</th></tr></thead><tbody id="purchaseHistoryTable"></tbody></table>
+</div>
 <div class="table-card"><table>
-<thead><tr><th>批次ID</th><th>进货人</th><th>创建时间</th><th>状态</th><th>操作</th></tr></thead>
-<tbody id="batchTable"><tr class="empty-row"><td colspan="5">加载中...</td></tr></tbody>
+<thead><tr><th>进货人</th><th>创建时间</th><th>状态</th><th>操作</th></tr></thead>
+<tbody id="batchTable"><tr class="empty-row"><td colspan="4">加载中...</td></tr></tbody>
 </table></div></div>
 
 <div class="modal-overlay" id="detailModal"><div class="modal">
@@ -92,9 +99,40 @@ td{padding:12px 16px;font-size:13px;color:#333;border-bottom:1px solid #f0f0f0}t
 <div class="form-group"><label>类型</label><select id="ndType"><option value="10">药品</option><option value="20">耗材</option></select></div>
 <div class="form-group"><label>单位</label><select id="ndUnit"><option value="1">个</option><option value="2">瓶</option><option value="3">盒</option><option value="4">袋</option><option value="11">毫克</option><option value="12">克</option><option value="13">千克</option><option value="21">毫升</option><option value="22">升</option></select></div>
 </div>
+<div class="form-row">
+<div class="form-group"><label>规格</label><input id="ndSpec"></div>
+<div class="form-group"><label>品牌</label><input id="ndTrademark"></div>
+<div class="form-group"><label>OTC类型</label><select id="ndOtcType"><option value="">未设置</option><option value="1">OTC</option><option value="2">非药品</option></select></div>
+</div>
+<div class="form-group"><label>销售价（元）*</label><input id="ndSellingPrice" type="number" step="0.01" placeholder="必填"></div>
 <div class="form-group"><label>别名</label><input id="ndAlias" placeholder="别名(选填)"></div>
 <div class="form-group"><label>条码</label><input id="ndBarcode" placeholder="扫码或输入条码"></div>
 <div class="form-group"><label>厂商</label><input id="ndManufacturer" placeholder="生产厂商(选填)"></div>
+<div class="form-row">
+<div class="form-group"><label>生产地址</label><input id="ndManufacturerAddress"></div>
+<div class="form-group"><label>批准文号</label><input id="ndApprovalNumber"></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label>用法用量</label><textarea id="ndDosage" rows="2"></textarea></div>
+<div class="form-group"><label>功能主治</label><textarea id="ndIndications" rows="2"></textarea></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label>主要成分</label><textarea id="ndMainIngredients" rows="2"></textarea></div>
+<div class="form-group"><label>性状</label><textarea id="ndCharacteristics" rows="2"></textarea></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label>禁忌</label><textarea id="ndContraindications" rows="2"></textarea></div>
+<div class="form-group"><label>注意事项</label><textarea id="ndPrecautions" rows="2"></textarea></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label>贮藏条件</label><input id="ndStorageCondition"></div>
+<div class="form-group"><label>有效期</label><input id="ndValidityPeriod"></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label>其它注意事项</label><textarea id="ndOtherNotes" rows="2"></textarea></div>
+<div class="form-group"><label>备注</label><textarea id="ndNote" rows="2"></textarea></div>
+</div>
+<div class="form-group"><label>图片地址</label><input id="ndImageUrl"></div>
 <div style="display:flex;gap:8px"><button class="btn btn-primary" onclick="submitNewDrug()">保存药品</button><button class="btn" style="border:1px solid #d9d9d9" onclick="hideNewDrug()">取消</button></div>
 </div>
 </div>
@@ -102,21 +140,63 @@ td{padding:12px 16px;font-size:13px;color:#333;border-bottom:1px solid #f0f0f0}t
 
 <div class="toast" id="toast"></div>
 <script>
-var currentBatchId=null,drugs=[],physicList=[];
+var currentBatchId=null,drugs=[],physicList=[],historySelectedDrug=null;
 function statusText(s){return s===1?"正常":s===0?"待设置":s===-1?"停用":s===2?"占用":"未知";}function statusColor(s){return s===1?"#52c41a":s===0?"#faad14":s===-1?"#ff4d4f":s===2?"#1890ff":"#999";}
 function sToast(m,t){var e=document.getElementById('toast');e.textContent=m;e.className='toast '+t;e.style.display='block';setTimeout(function(){e.style.display='none'},2500);}
 function h(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
+function searchHistoryDrugs(){
+  var q=document.getElementById('historyDrugName').value.trim();
+  var list=document.getElementById('historyDrugList');
+  historySelectedDrug=null;
+  if(!q){list.style.display='none';return;}
+  fetch('/physic/list?name='+encodeURIComponent(q)).then(r=>r.json()).then(function(data){
+    var items=data||[];
+    list.innerHTML=items.length?items.map(function(p){
+      return '<div class="item" onclick="selectHistoryDrug('+p.id+',\''+h(p.name)+'\')">'+h(p.name)+(p.alias?' ('+h(p.alias)+')':'')+'</div>';
+    }).join(''):'<div class="item" style="color:#999;cursor:default">未找到药品</div>';
+    list.style.display='block';
+  }).catch(function(){list.style.display='none';});
+}
+
+function selectHistoryDrug(id,name){
+  historySelectedDrug={id:id,name:name};
+  document.getElementById('historyDrugName').value=name;
+  document.getElementById('historyDrugList').style.display='none';
+  loadPurchaseHistory();
+}
+
+function loadPurchaseHistory(){
+  var name=document.getElementById('historyDrugName').value.trim();
+  if(!historySelectedDrug){
+    if(!name){sToast('请输入药品名称','error');return;}
+    fetch('/physic/list?name='+encodeURIComponent(name)).then(r=>r.json()).then(function(items){
+      if(!items||!items.length){sToast('未找到药品','error');return;}
+      historySelectedDrug=items[0];
+      loadPurchaseHistory();
+    });
+    return;
+  }
+  document.getElementById('purchaseHistoryCard').style.display='block';
+  document.getElementById('purchaseHistoryTable').innerHTML='<tr><td colspan="6" style="text-align:center;color:#999">加载中...</td></tr>';
+  fetch('/pd/history?physicId='+historySelectedDrug.id).then(r=>r.json()).then(function(list){
+    if(!list||!list.length){document.getElementById('purchaseHistoryTable').innerHTML='<tr><td colspan="6" style="text-align:center;color:#999">暂无进货记录</td></tr>';return;}
+    document.getElementById('purchaseHistoryTable').innerHTML=list.map(function(item){
+      return '<tr><td>'+item.batch+'</td><td>￥'+Number(item.buyingPrice||0).toFixed(2)+'</td><td>'+item.availableQty+'</td><td>'+item.occupiedQty+'</td><td>'+item.totalQty+'</td><td>'+h(item.createTime||'-')+'</td></tr>';
+    }).join('');
+  }).catch(function(){document.getElementById('purchaseHistoryTable').innerHTML='<tr><td colspan="6" style="text-align:center;color:#999">加载失败</td></tr>';});
+}
+
 function load(){
-  document.getElementById('batchTable').innerHTML='<tr class="empty-row"><td colspan="5">加载中...</td></tr>';
+  document.getElementById('batchTable').innerHTML='<tr class="empty-row"><td colspan="4">加载中...</td></tr>';
   fetch('/pb/list').then(r=>r.json()).then(function(d){
     var t=document.getElementById('batchTable');
-    if(!d||!d.length){t.innerHTML='<tr class="empty-row"><td colspan="5">暂无数据</td></tr>';return;}
+    if(!d||!d.length){t.innerHTML='<tr class="empty-row"><td colspan="4">暂无数据</td></tr>';return;}
     t.innerHTML=d.map(function(b){
       var st=statusText(b.status);var sc=statusColor(b.status);
-      return '<tr><td>'+b.id+'</td><td>'+h(b.user||'')+'</td><td>'+(b.createTime?b.createTime.substring(0,19):'-')+'</td><td style="color:'+sc+'">'+st+'</td><td class="action-btns"><button class="btn btn-sm btn-primary" onclick="showDetail('+b.id+')">明细</button><button class="btn btn-sm btn-danger" onclick="delBatch('+b.id+')">删除</button></td></tr>';
+      return '<tr><td>'+h(b.userName||'未知')+'</td><td>'+(b.createTime?b.createTime.substring(0,19):'-')+'</td><td style="color:'+sc+'">'+st+'</td><td class="action-btns"><button class="btn btn-sm btn-primary" onclick="showDetail('+b.id+')">明细</button><button class="btn btn-sm btn-danger" onclick="delBatch('+b.id+')">删除</button></td></tr>';
     }).join('');
-  }).catch(function(){document.getElementById('batchTable').innerHTML='<tr class="empty-row"><td colspan="5">加载失败</td></tr>';});
+  }).catch(function(){document.getElementById('batchTable').innerHTML='<tr class="empty-row"><td colspan="4">加载失败</td></tr>';});
 }
 
 function openAdd(){
@@ -134,8 +214,8 @@ function delBatch(id){if(!confirm('确定删除该批次？'))return;
 var editingPhysicId=null;
 function showDetail(batchId){
   currentBatchId=batchId;
-  document.getElementById('detailTitle').textContent='批次明细 #'+batchId;
-  document.getElementById('batchInfo').textContent='批次ID: '+batchId;
+  document.getElementById('detailTitle').textContent='批次明细';
+  document.getElementById('batchInfo').textContent='';
   document.getElementById('drugList').innerHTML='<p style="text-align:center;color:#999">加载中...</p>';
   document.getElementById('addForm').style.display='none';
   document.getElementById('newDrugForm').style.display='none';
@@ -211,24 +291,51 @@ function submitAdd(){
 
 function showNewDrug(){
   document.getElementById('newDrugForm').style.display='block';
-  document.getElementById('ndName').value='';
+  ['ndName','ndSpec','ndTrademark','ndAlias','ndBarcode','ndManufacturer','ndManufacturerAddress','ndApprovalNumber','ndDosage','ndIndications','ndMainIngredients','ndCharacteristics','ndContraindications','ndPrecautions','ndStorageCondition','ndValidityPeriod','ndOtherNotes','ndNote','ndImageUrl','ndSellingPrice'].forEach(function(id){document.getElementById(id).value='';});
   document.getElementById('ndType').value='10';
   document.getElementById('ndUnit').value='1';
-  document.getElementById('ndAlias').value='';
-  document.getElementById('ndBarcode').value='';
-  document.getElementById('ndManufacturer').value='';
+  document.getElementById('ndOtcType').value='';
 }
 function hideNewDrug(){document.getElementById('newDrugForm').style.display='none';}
 function submitNewDrug(){
   var name=document.getElementById('ndName').value.trim();
+  var sellingPrice=parseFloat(document.getElementById('ndSellingPrice').value);
   if(!name){sToast('请输入药品名称','error');return;}
-  fetch('/physic/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,type:parseInt(document.getElementById('ndType').value),unit:parseInt(document.getElementById('ndUnit').value),alias:document.getElementById('ndAlias').value.trim(),barcode:document.getElementById('ndBarcode').value.trim(),manufacturer:document.getElementById('ndManufacturer').value.trim()})})
+  if(!sellingPrice||sellingPrice<=0){sToast('请输入有效销售价','error');return;}
+  var body={
+    name:name,
+    type:parseInt(document.getElementById('ndType').value),
+    unit:parseInt(document.getElementById('ndUnit').value),
+    spec:document.getElementById('ndSpec').value.trim(),
+    trademark:document.getElementById('ndTrademark').value.trim(),
+    alias:document.getElementById('ndAlias').value.trim(),
+    barcode:document.getElementById('ndBarcode').value.trim(),
+    manufacturer:document.getElementById('ndManufacturer').value.trim(),
+    manufacturerAddress:document.getElementById('ndManufacturerAddress').value.trim(),
+    approvalNumber:document.getElementById('ndApprovalNumber').value.trim(),
+    otcType:document.getElementById('ndOtcType').value?parseInt(document.getElementById('ndOtcType').value):null,
+    dosage:document.getElementById('ndDosage').value.trim(),
+    indications:document.getElementById('ndIndications').value.trim(),
+    mainIngredients:document.getElementById('ndMainIngredients').value.trim(),
+    characteristics:document.getElementById('ndCharacteristics').value.trim(),
+    contraindications:document.getElementById('ndContraindications').value.trim(),
+    precautions:document.getElementById('ndPrecautions').value.trim(),
+    storageCondition:document.getElementById('ndStorageCondition').value.trim(),
+    validityPeriod:document.getElementById('ndValidityPeriod').value.trim(),
+    otherNotes:document.getElementById('ndOtherNotes').value.trim(),
+    note:document.getElementById('ndNote').value.trim(),
+    imageUrl:document.getElementById('ndImageUrl').value.trim(),
+    sellingPrice:sellingPrice,
+    sourceApi:'MANUAL',
+    dataVerified:1
+  };
+  fetch('/physic/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
   .then(r=>r.json()).then(function(resp){
     if(resp.code===200||resp.code===undefined){
       sToast('药品创建成功','success');
       hideNewDrug();
       document.getElementById('drugSearch').value=name;
-      searchDrugs();
+      selectDrug(resp.data.id,resp.data.name);
     }else{sToast(resp.msg||'创建失败','error');}
   }).catch(function(){sToast('创建失败','error');});
 }

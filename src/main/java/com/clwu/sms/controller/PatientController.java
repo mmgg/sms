@@ -4,7 +4,6 @@ import com.clwu.sms.entity.Patient;
 import com.clwu.sms.entity.Physic;
 import com.clwu.sms.entity.Prescription;
 import com.clwu.sms.entity.PrescriptionPhysic;
-import com.clwu.sms.entity.SellingPrice;
 import com.clwu.sms.entity.User;
 import com.clwu.sms.enums.StatusEnum;
 import com.clwu.sms.enums.UnitEnum;
@@ -13,7 +12,6 @@ import com.clwu.sms.service.PatientService;
 import com.clwu.sms.service.PhysicService;
 import com.clwu.sms.service.PrescriptionPhysicService;
 import com.clwu.sms.service.PrescriptionService;
-import com.clwu.sms.service.SellingPricingService;
 import com.clwu.sms.service.UserService;
 import com.clwu.sms.vo.PatientHistoryItemVo;
 import com.clwu.sms.vo.PatientHistoryVo;
@@ -24,7 +22,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -48,9 +45,6 @@ public class PatientController {
 
     @Autowired
     private PhysicService physicService;
-
-    @Autowired
-    private SellingPricingService sellingPricingService;
 
     @Autowired
     private UserService userService;
@@ -112,22 +106,13 @@ public class PatientController {
             List<PrescriptionPhysic> prescriptionItems = prescriptionPhysicService.findPrescriptionPhysic(
                     prescription.getId(), StatusEnum.US_ENABLED.getCode());
             List<PatientHistoryItemVo> items = new ArrayList<>(prescriptionItems.size());
-            BigDecimal totalAmount = BigDecimal.ZERO;
-
             for (PrescriptionPhysic prescriptionPhysic : prescriptionItems) {
                 Physic physic = physicService.findPhysicById(prescriptionPhysic.getPhysic());
-                SellingPrice sellingPrice = sellingPricingService.findSellingPriceById(
-                        prescriptionPhysic.getSelling());
-                BigDecimal unitPrice = sellingPrice == null ? BigDecimal.ZERO : sellingPrice.getPrice();
-                BigDecimal amount = unitPrice.multiply(BigDecimal.valueOf(prescriptionPhysic.getNum()));
                 UnitEnum unit = UnitEnum.findByCode(physic == null ? null : physic.getUnit());
-                totalAmount = totalAmount.add(amount);
                 items.add(PatientHistoryItemVo.builder()
                         .physicName(physic == null ? "未知药品" : physic.getName())
                         .quantity(prescriptionPhysic.getNum())
                         .unitName(unit == null ? "" : unit.getDesc())
-                        .unitPrice(unitPrice)
-                        .amount(amount)
                         .build());
             }
 
@@ -137,7 +122,6 @@ public class PatientController {
                     .doctorName(doctor == null ? "未知" : doctor.getName())
                     .comments(prescription.getComments())
                     .itemCount(items.size())
-                    .totalAmount(totalAmount)
                     .items(items)
                     .build());
         }

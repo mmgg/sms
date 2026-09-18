@@ -9,14 +9,21 @@ import com.clwu.sms.enums.StatusEnum;
 import com.clwu.sms.enums.UnitEnum;
 import com.clwu.sms.mapper.PhysicMapper;
 import com.clwu.sms.service.PhysicService;
+import com.clwu.sms.service.SellingPricingService;
+import com.clwu.sms.service.ShowApiDrugService;
+import com.clwu.sms.entity.SellingPrice;
 import com.clwu.sms.utils.StringUtil;
+import com.clwu.sms.vo.PhysicBarcodeInfoVo;
+import com.clwu.sms.vo.PhysicScanResultVo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.time.LocalDateTime;
 
 @Service
 public class PhysicServiceImpl implements PhysicService {
@@ -27,14 +34,30 @@ public class PhysicServiceImpl implements PhysicService {
     @Autowired
     private PhysicMapper physicMapper;
 
+    @Autowired
+    private ShowApiDrugService showApiDrugService;
+
+    @Autowired
+    private SellingPricingService sellingPricingService;
+
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void addPhysic(Physic physic) {
         if (null != physic) {
-            normalizeBarcode(physic);
+            validateSellingPrice(physic);
+            normalizePhysic(physic);
             ensureBarcodeUnique(physic);
             physic.setStatus(StatusEnum.US_ENABLED.getCode());
             physic.setUpdateUser(1L);
+            if (StringUtil.isBlank(physic.getSourceApi())) {
+                physic.setSourceApi("MANUAL");
+                physic.setDataVerified(1);
+            } else {
+                physic.setSourceSyncedAt(LocalDateTime.now());
+                physic.setDataVerified(1);
+            }
             physicMapper.insert(physic);
+            saveSellingPrice(physic);
             log.info("新增药品/耗材: physicId={}, name={}, barcode={}",
                     physic.getId(), physic.getName(), physic.getBarcode());
         }
@@ -49,13 +72,16 @@ public class PhysicServiceImpl implements PhysicService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void updPhysic(Physic physic) {
         if (physic.getId() != null && physic.getId() > 0L) {
-            normalizeBarcode(physic);
+            validateSellingPrice(physic);
+            normalizePhysic(physic);
             ensureBarcodeUnique(physic);
             physic.setTenantId(null);
             physic.setDeleted(null);
             physicMapper.updateById(physic);
+            saveSellingPrice(physic);
             log.info("更新药品/耗材: physicId={}, name={}, barcode={}",
                     physic.getId(), physic.getName(), physic.getBarcode());
         }
@@ -77,6 +103,18 @@ public class PhysicServiceImpl implements PhysicService {
         QueryWrapper<Physic> wrapper = new QueryWrapper<>();
         wrapper.eq("barcode", barcode.trim());
         return physicMapper.selectOne(wrapper);
+    }
+
+    @Override
+    public PhysicScanResultVo scanBarcode(String barcode) {
+        Physic local = findPhysicByBarcode(barcode);
+        if (local != null) {
+            log.info("条码命中本地药品库: barcode={}, physicId={}", barcode, local.getId());
+            return PhysicScanResultVo.builder().source("LOCAL").physic(local).build();
+        }
+        log.info("条码未命中本地药品库，调用外部接口: barcode={}", barcode);
+        PhysicBarcodeInfoVo external = showApiDrugService.queryByBarcode(barcode);
+        return PhysicScanResultVo.builder().source("REMOTE").external(external).build();
     }
 
     @Override
@@ -125,14 +163,31 @@ public class PhysicServiceImpl implements PhysicService {
         return physicMapper.selectList(qw);
     }
 
-    private void normalizeBarcode(Physic physic) {
-        if (physic == null || StringUtil.isBlank(physic.getBarcode())) {
-            if (physic != null) {
-                physic.setBarcode(null);
-            }
+    private void normalizePhysic(Physic physic) {
+        if (physic == null) {
             return;
         }
-        physic.setBarcode(physic.getBarcode().trim());
+        physic.setBarcode(trimToNull(physic.getBarcode()));
+        physic.setName(trimToNull(physic.getName()));
+        physic.setSpec(trimToNull(physic.getSpec()));
+        physic.setTrademark(trimToNull(physic.getTrademark()));
+        physic.setManufacturer(trimToNull(physic.getManufacturer()));
+        physic.setManufacturerAddress(trimToNull(physic.getManufacturerAddress()));
+        physic.setApprovalNumber(trimToNull(physic.getApprovalNumber()));
+        physic.setDosage(trimToNull(physic.getDosage()));
+        physic.setIndications(trimToNull(physic.getIndications()));
+        physic.setMainIngredients(trimToNull(physic.getMainIngredients()));
+        physic.setContraindications(trimToNull(physic.getContraindications()));
+        physic.setPrecautions(trimToNull(physic.getPrecautions()));
+        physic.setStorageCondition(trimToNull(physic.getStorageCondition()));
+        physic.setValidityPeriod(trimToNull(physic.getValidityPeriod()));
+        physic.setCharacteristics(trimToNull(physic.getCharacteristics()));
+        physic.setOtherNotes(trimToNull(physic.getOtherNotes()));
+        physic.setNote(trimToNull(physic.getNote()));
+        physic.setImageUrl(trimToNull(physic.getImageUrl()));
+        physic.setAlias(trimToNull(physic.getAlias()));
+        physic.setSourceApi(trimToNull(physic.getSourceApi()));
+        physic.setSourcePayload(trimToNull(physic.getSourcePayload()));
     }
 
     private void ensureBarcodeUnique(Physic physic) {
@@ -147,5 +202,24 @@ public class PhysicServiceImpl implements PhysicService {
         if (physicMapper.selectCount(wrapper) > 0) {
             throw new BusinessException(400, "条码已存在: " + physic.getBarcode());
         }
+    }
+
+    private String trimToNull(String value) {
+        return StringUtil.isBlank(value) ? null : value.trim();
+    }
+
+    private void validateSellingPrice(Physic physic) {
+        if (physic.getSellingPrice() == null
+                || physic.getSellingPrice().compareTo(java.math.BigDecimal.ZERO) <= 0) {
+            throw new BusinessException(400, "销售价必填且必须大于0");
+        }
+    }
+
+    private void saveSellingPrice(Physic physic) {
+        SellingPrice price = new SellingPrice();
+        price.setPhysic(physic.getId());
+        price.setPrice(physic.getSellingPrice());
+        price.setStatus(StatusEnum.US_ENABLED.getCode());
+        sellingPricingService.addSellingPrice(price);
     }
 }

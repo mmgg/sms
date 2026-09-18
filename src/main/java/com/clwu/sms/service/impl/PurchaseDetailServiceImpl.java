@@ -10,6 +10,7 @@ import com.clwu.sms.service.PurchaseBatchService;
 import com.clwu.sms.service.PurchaseDetailService;
 import com.clwu.sms.service.PhysicService;
 import com.clwu.sms.vo.StockSummaryVo;
+import com.clwu.sms.vo.PurchasePriceHistoryVo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -232,5 +233,42 @@ public class PurchaseDetailServiceImpl implements PurchaseDetailService {
     @Override
     public List<StockSummaryVo> getStockSummary() {
         return parchaseDetailMapper.selectStockSummary();
+    }
+
+    @Override
+    public List<PurchasePriceHistoryVo> findPurchaseHistory(Long physicId) {
+        if (physicId == null || physicId <= 0L) {
+            return new ArrayList<>();
+        }
+        QueryWrapper<PurchaseDetail> wrapper = new QueryWrapper<>();
+        wrapper.eq("physic", physicId).orderByDesc("create_time");
+        List<PurchaseDetail> details = parchaseDetailMapper.selectList(wrapper);
+        java.util.Map<String, List<PurchaseDetail>> grouped = details.stream()
+                .collect(Collectors.groupingBy(d -> d.getBatch() + ":" + d.getBuyingPrice()));
+        List<PurchasePriceHistoryVo> result = new ArrayList<>();
+        for (List<PurchaseDetail> group : grouped.values()) {
+            PurchaseDetail first = group.get(0);
+            int available = 0;
+            int occupied = 0;
+            for (PurchaseDetail detail : group) {
+                if (detail.getStatus() == StatusEnum.US_ENABLED.getCode()) {
+                    available++;
+                } else if (detail.getStatus() == StatusEnum.US_OCCUPY.getCode()) {
+                    occupied++;
+                }
+            }
+            result.add(PurchasePriceHistoryVo.builder()
+                    .batch(first.getBatch())
+                    .buyingPrice(first.getBuyingPrice())
+                    .availableQty(available)
+                    .occupiedQty(occupied)
+                    .totalQty(group.size())
+                    .createTime(first.getCreateTime())
+                    .build());
+        }
+        result.sort(Comparator.comparing(PurchasePriceHistoryVo::getCreateTime,
+                Comparator.nullsLast(Comparator.reverseOrder())));
+        log.info("查询药品进货历史: physicId={}, groups={}", physicId, result.size());
+        return result;
     }
 }

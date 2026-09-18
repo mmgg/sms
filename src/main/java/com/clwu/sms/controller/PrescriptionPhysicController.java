@@ -2,7 +2,6 @@ package com.clwu.sms.controller;
 
 import com.clwu.sms.entity.PrescriptionPhysic;
 import com.clwu.sms.entity.Physic;
-import com.clwu.sms.entity.SellingPrice;
 import com.clwu.sms.enums.StatusEnum;
 import com.clwu.sms.service.PrescriptionPhysicService;
 import com.clwu.sms.service.PhysicService;
@@ -28,8 +27,6 @@ public class PrescriptionPhysicController {
     private PrescriptionPhysicService perscriptionPhysicService;
     @Autowired
     private PhysicService physicService;
-    @Autowired
-    private SellingPricingService sellingPricingService;
     @PostMapping("/add")
     public void add(@RequestBody @NotNull(message = "参数不能为空") PrescriptionPhysic perscriptionPhysic) {
         perscriptionPhysic.setStatus(StatusEnum.US_ENABLED.getCode());
@@ -70,10 +67,8 @@ public class PrescriptionPhysicController {
             return null;
         }
         Physic physic = physicService.findPhysicById(perscriptionPhysic.getPhysic());
-        SellingPrice sellingPrice = sellingPricingService.findSellingPriceById(perscriptionPhysic.getSelling());
         perscriptionPhysicDetailVo.setPhysic(physic);
         perscriptionPhysicDetailVo.setNum(perscriptionPhysic.getNum());
-        perscriptionPhysicDetailVo.setSellingPrice(sellingPrice);
         return perscriptionPhysicDetailVo;
     }
 }

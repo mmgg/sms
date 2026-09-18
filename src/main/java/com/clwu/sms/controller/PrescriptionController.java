@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import javax.validation.constraints.Min;
 import javax.servlet.http.HttpSession;
 import javax.validation.constraints.NotNull;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import com.clwu.sms.utils.StringUtil;
 import java.util.ArrayList;
@@ -69,11 +70,38 @@ public class PrescriptionController {
                 User user = userService.getUserById(p.getUser());
                 String pn = patient != null ? patient.getName() : "未知";
                 String un = user != null ? user.getName() : "未知";
+                String medicineSummary = buildMedicineSummary(p.getId());
+                BigDecimal totalAmount = calculatePrescriptionTotal(p.getId());
                 result.add(new PrescriptionVO(p.getId(), p.getPatient(), pn, p.getUser(), un,
-                        p.getStatus(), p.getComments(), p.getCreateTime(), p.getUpdateTime(), p.getUpdateUser()));
+                        p.getStatus(), p.getComments(), medicineSummary,
+                        p.getCreateTime(), totalAmount, p.getUpdateTime(), p.getUpdateUser()));
             }
         }
         return result;
+    }
+
+    private String buildMedicineSummary(Long prescriptionId) {
+        List<PrescriptionPhysic> items = perscriptionPhysicService.findPrescriptionPhysic(
+                prescriptionId, StatusEnum.US_ENABLED.getCode());
+        List<String> parts = new ArrayList<>(items.size());
+        for (PrescriptionPhysic item : items) {
+            Physic physic = physicService.findPhysicById(item.getPhysic());
+            String name = physic == null ? "未知药品" : physic.getName();
+            parts.add(name + "×" + item.getNum());
+        }
+        return String.join("；", parts);
+    }
+
+    private BigDecimal calculatePrescriptionTotal(Long prescriptionId) {
+        BigDecimal total = BigDecimal.ZERO;
+        for (PrescriptionPhysic item : perscriptionPhysicService.findPrescriptionPhysic(
+                prescriptionId, StatusEnum.US_ENABLED.getCode())) {
+            SellingPrice price = sellingPricingService.findSellingPriceById(item.getSelling());
+            if (price != null && price.getPrice() != null) {
+                total = total.add(price.getPrice().multiply(BigDecimal.valueOf(item.getNum())));
+            }
+        }
+        return total;
     }
 
     @PostMapping("/createWithItems")
@@ -84,6 +112,13 @@ public class PrescriptionController {
         } catch (BusinessException e) {
             return ResultVo.error(e.getCode(), e.getMessage());
         }
+    }
+
+    @PostMapping("/updateWithItems")
+    public ResultVo<?> updateWithItems(@RequestParam Long id,
+                                       @RequestBody PrescriptionRequest request) {
+        perscriptionService.updatePrescriptionWithItems(id, request);
+        return ResultVo.ok(null);
     }
 
     @PostMapping("/add")
@@ -121,18 +156,26 @@ public class PrescriptionController {
         List<PrescriptionPhysic> perscriptionPhysics =
                 perscriptionPhysicService.findPrescriptionPhysic(id, StatusEnum.US_ENABLED.getCode());
         List<PrescriptionPhysicDetailVo> perscriptionPhysicDetailVos = new ArrayList<>(perscriptionPhysics.size());
+        BigDecimal totalAmount = BigDecimal.ZERO;
         for(PrescriptionPhysic perscriptionPhysic: perscriptionPhysics) {
             PrescriptionPhysicDetailVo perscriptionPhysicDetailVo = new PrescriptionPhysicDetailVo();
             Physic physic = physicService.findPhysicById(perscriptionPhysic.getPhysic());
             SellingPrice sellingPrice = sellingPricingService.findSellingPriceById(perscriptionPhysic.getSelling());
+            BigDecimal unitPrice = sellingPrice == null || sellingPrice.getPrice() == null
+                    ? BigDecimal.ZERO : sellingPrice.getPrice();
+            BigDecimal lineAmount = unitPrice.multiply(BigDecimal.valueOf(perscriptionPhysic.getNum()));
+            totalAmount = totalAmount.add(lineAmount);
             perscriptionPhysicDetailVo.setPhysic(physic);
             perscriptionPhysicDetailVo.setNum(perscriptionPhysic.getNum());
-            perscriptionPhysicDetailVo.setSellingPrice(sellingPrice);
+            perscriptionPhysicDetailVo.setUnitPrice(unitPrice);
+            perscriptionPhysicDetailVo.setLineAmount(lineAmount);
+            perscriptionPhysicDetailVo.setRemarks(perscriptionPhysic.getRemarks());
             perscriptionPhysicDetailVos.add(perscriptionPhysicDetailVo);
         }
         perscriptionDetailVo.setPrescription(perscription);
         perscriptionDetailVo.setPatient(patient);
         perscriptionDetailVo.setPrescriptionPhysicDetailVos(perscriptionPhysicDetailVos);
+        perscriptionDetailVo.setTotalAmount(totalAmount);
         return perscriptionDetailVo;
 
     }

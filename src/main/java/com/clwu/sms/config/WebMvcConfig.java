@@ -30,5 +30,14 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/user/upd",
                         "/user/reset-pwd"
                 );
+        registry.addInterceptor(new DoctorAccessInterceptor())
+                .addPathPatterns("/**")
+                .excludePathPatterns(
+                        "/login",
+                        "/login/**",
+                        "/api/login",
+                        "/favicon.ico",
+                        "/error"
+                );
     }
 }

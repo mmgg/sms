@@ -15,5 +15,6 @@ public class PrescriptionRequest {
         private Long physic;
         private Integer num;
         private Long selling;
+        private String remarks;
     }
 }

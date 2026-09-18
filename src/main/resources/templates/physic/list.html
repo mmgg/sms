@@ -20,12 +20,17 @@ table{width:100%;border-collapse:collapse}thead{background:#fafafa}th{padding:12
 td{padding:12px 16px;font-size:13px;color:#333;border-bottom:1px solid #f0f0f0}tr:hover td{background:#f5f7fa}
 .action-btns{display:flex;gap:6px}
 .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.45);z-index:1000;justify-content:center;align-items:center}
-.modal-overlay.show{display:flex}.modal{background:#fff;border-radius:8px;width:520px;max-height:90vh;overflow-y:auto;box-shadow:0 4px 24px rgba(0,0,0,0.15)}
+.modal-overlay.show{display:flex}.modal{background:#fff;border-radius:8px;width:860px;max-width:calc(100vw - 32px);max-height:90vh;overflow-y:auto;box-shadow:0 4px 24px rgba(0,0,0,0.15)}
 .modal-header{padding:16px 24px;border-bottom:1px solid #f0f0f0;display:flex;justify-content:space-between;align-items:center}.modal-header h3{font-size:16px}
 .modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:#999}
 .modal-body{padding:24px}.form-group{margin-bottom:16px}.form-group label{display:block;font-size:13px;color:#666;margin-bottom:6px}
-.form-group input,.form-group select{width:100%;padding:8px 12px;border:1px solid #d9d9d9;border-radius:6px;font-size:13px}
-.form-group input:focus,.form-group select:focus{outline:none;border-color:#1890ff}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:8px 12px;border:1px solid #d9d9d9;border-radius:6px;font-size:13px;font-family:inherit}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:#1890ff}
+.form-section-title{font-size:14px;font-weight:600;color:#333;border-bottom:1px solid #f0f0f0;padding-bottom:8px;margin:18px 0 14px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+.form-grid .full{grid-column:1 / 3}
+.external-tip{display:none;background:#e6f7ff;border:1px solid #91d5ff;color:#096dd9;border-radius:6px;padding:10px 12px;font-size:13px;margin-bottom:12px}
+.barcode-input-row{display:flex;gap:8px}.barcode-input-row input{flex:1}.barcode-input-row button{flex:none;padding:8px 16px}
 .form-row{display:flex;gap:12px}.form-row .form-group{flex:1}
 .modal-footer{padding:12px 24px;border-top:1px solid #f0f0f0;display:flex;justify-content:flex-end;gap:8px}
 .modal-footer .btn-cancel{background:#fff;border:1px solid #d9d9d9;padding:8px 20px;border-radius:6px;cursor:pointer;font-size:14px}
@@ -54,30 +59,55 @@ td{padding:12px 16px;font-size:13px;color:#333;border-bottom:1px solid #f0f0f0}t
 <div class="search-bar">
 <input id="sName" placeholder="名称搜索"><select id="sType"><option value="0">全部类型</option><option value="10">药品</option><option value="20">耗材</option></select>
 <input id="sBarcode" placeholder="扫码/输入条码后回车" onkeydown="scanBarcode(event)">
+<button class="btn btn-primary" id="barcodeQueryBtn" onclick="queryBarcode()">查询</button>
 <button class="btn btn-primary" onclick="loadList()">🔍 搜索</button>
 </div>
 <div class="table-card"><table>
-<thead><tr><th>ID</th><th>名称</th><th>条码</th><th>类型</th><th>别名</th><th>厂商</th><th>单位</th><th>状态</th><th>操作</th></tr></thead>
-<tbody id="dataTable"><tr class="empty-row"><td colspan="9">加载中...</td></tr></tbody>
+<thead><tr><th>名称</th><th>条码</th><th>规格</th><th>品牌</th><th>类型</th><th>单位</th><th>厂商</th><th>售价</th><th>状态</th><th>操作</th></tr></thead>
+<tbody id="dataTable"><tr class="empty-row"><td colspan="10">加载中...</td></tr></tbody>
 </table></div></div>
 <div class="modal-overlay" id="formModal"><div class="modal">
 <div class="modal-header"><h3 id="modalTitle">新增</h3><button class="modal-close" onclick="closeModal()">×</button></div>
 <div class="modal-body">
 <input type="hidden" id="editId">
+<input type="hidden" id="fSourceApi">
+<input type="hidden" id="fSourcePayload">
+<div id="externalTip" class="external-tip">已从药品条码接口获取资料，请确认或修改后保存。</div>
+
+<div class="form-section-title">基础信息</div>
+<div class="form-grid">
 <div class="form-group"><label>名称 *</label><input id="fName" placeholder="请输入名称"></div>
-<div class="form-row">
+<div class="form-group"><label>条码</label><div class="barcode-input-row"><input id="fBarcode" placeholder="扫码或输入条码"><button type="button" class="btn btn-primary" onclick="queryFormBarcode()">查询</button></div></div>
+<div class="form-group"><label>规格</label><input id="fSpec" placeholder="例如 0.25g*24片"></div>
+<div class="form-group"><label>品牌名称/商标</label><input id="fTrademark" placeholder="品牌名称"></div>
 <div class="form-group"><label>类型</label><select id="fType"><option value="10">药品</option><option value="20">耗材</option></select></div>
 <div class="form-group"><label>单位</label><select id="fUnit"><option value="0">未选择</option><option value="1">个</option><option value="2">瓶</option><option value="3">盒</option><option value="4">袋</option><option value="11">毫克</option><option value="12">克</option><option value="13">千克</option><option value="21">毫升</option><option value="22">升</option></select></div>
-</div>
 <div class="form-group"><label>别名</label><input id="fAlias" placeholder="请输入别名"></div>
-<div class="form-group"><label>条码</label><input id="fBarcode" placeholder="扫码或输入条码"></div>
-<div class="form-group"><label>厂商</label><input id="fManufacturer" placeholder="请输入生产厂商"></div>
-<div class="form-group"><label>状态</label>
-<select id="fStatus" style="color:#52c41a;font-weight:500;background:#fff">
-<option value="1" style="color:#52c41a">✓ 正常</option>
-<option value="0" style="color:#faad14">待设置</option>
-<option value="-1" style="color:#ff4d4f">✕ 停用</option>
-</select>
+<div class="form-group"><label>状态</label><select id="fStatus"><option value="1">正常</option><option value="0">待设置</option><option value="-1">停用</option></select></div>
+<div class="form-group"><label>销售价（元）*</label><input id="fSellingPrice" type="number" step="0.01" placeholder="必填"></div>
+</div>
+
+<div class="form-section-title">生产与批准信息</div>
+<div class="form-grid">
+<div class="form-group"><label>生产厂家</label><input id="fManufacturer" placeholder="生产厂家"></div>
+<div class="form-group"><label>生产地址</label><input id="fManufacturerAddress" placeholder="生产地址"></div>
+<div class="form-group"><label>批准文号</label><input id="fApprovalNumber" placeholder="批准文号"></div>
+<div class="form-group"><label>OTC类型</label><select id="fOtcType"><option value="">未设置</option><option value="1">OTC</option><option value="2">非药品</option></select></div>
+<div class="form-group full"><label>药品图片地址</label><input id="fImageUrl" placeholder="图片地址"></div>
+</div>
+
+<div class="form-section-title">药品说明书信息</div>
+<div class="form-grid">
+<div class="form-group"><label>用法用量</label><textarea id="fDosage" rows="2"></textarea></div>
+<div class="form-group"><label>功能主治/适用范围</label><textarea id="fIndications" rows="2"></textarea></div>
+<div class="form-group"><label>主要成分</label><textarea id="fMainIngredients" rows="2"></textarea></div>
+<div class="form-group"><label>性状</label><textarea id="fCharacteristics" rows="2"></textarea></div>
+<div class="form-group"><label>禁忌</label><textarea id="fContraindications" rows="2"></textarea></div>
+<div class="form-group"><label>注意事项</label><textarea id="fPrecautions" rows="2"></textarea></div>
+<div class="form-group"><label>贮藏条件</label><textarea id="fStorageCondition" rows="2"></textarea></div>
+<div class="form-group"><label>有效期</label><textarea id="fValidityPeriod" rows="2"></textarea></div>
+<div class="form-group"><label>其它注意事项</label><textarea id="fOtherNotes" rows="2"></textarea></div>
+<div class="form-group"><label>备注</label><textarea id="fNote" rows="2"></textarea></div>
 </div>
 </div>
 <div class="modal-footer">
@@ -90,57 +120,147 @@ function statusText(s){return s===1?"正常":s===0?"待设置":s===-1?"停用":s
 function showToast(m,t){var e=document.getElementById('toast');e.textContent=m;e.className='toast '+t;e.style.display='block';setTimeout(function(){e.style.display='none'},2500);}
 function loadList(){
   var n=document.getElementById('sName').value;
-  document.getElementById('dataTable').innerHTML='<tr class="empty-row"><td colspan="9">加载中...</td></tr>';
-  fetch('/physic/list?name='+encodeURIComponent(n)).then(function(r){return r.json();}).then(function(d){
+  document.getElementById('dataTable').innerHTML='<tr class="empty-row"><td colspan="10">加载中...</td></tr>';
+  Promise.all([
+    fetch('/physic/list?name='+encodeURIComponent(n)).then(function(r){return r.json();}),
+    fetch('/sp/list').then(function(r){return r.json();})
+  ]).then(function(results){
+    var d=results[0]||[],prices=results[1]||[];
+    var priceMap={};prices.forEach(function(sp){if(sp.status===1)priceMap[sp.physic]=sp.price;});
     var t=document.getElementById('dataTable');
-    if(!d||d.length===0){t.innerHTML='<tr class="empty-row"><td colspan="9">暂无数据</td></tr>';return;}
+    if(!d||d.length===0){t.innerHTML='<tr class="empty-row"><td colspan="10">暂无数据</td></tr>';return;}
     t.innerHTML=d.map(function(p){
       var typeText=p.type===10?'药品':'耗材';
       var unitMap={0:'-',1:'个',2:'瓶',3:'盒',4:'袋',11:'毫克',12:'克',13:'千克',21:'毫升',22:'升'};
       var unitText=unitMap[p.unit]||'-';
       var stxt=statusText(p.status);
       var sc=statusColor(p.status);
-      return '<tr><td>'+p.id+'</td><td>'+h(p.name)+'</td><td>'+h(p.barcode||'')+'</td><td>'+typeText+'</td><td>'+h(p.alias)+'</td><td>'+h(p.manufacturer)+'</td><td>'+unitText+'</td><td style="color:'+sc+'">'+stxt+'</td><td class="action-btns"><button class="btn btn-sm btn-edit" onclick="openEdit('+p.id+')">编辑</button><button class="btn btn-sm btn-danger" onclick="del('+p.id+')">删除</button></td></tr>';
+      var price=priceMap[p.id]!=null?'￥'+Number(priceMap[p.id]).toFixed(2):'-';
+      return '<tr><td>'+h(p.name)+'</td><td>'+h(p.barcode||'')+'</td><td>'+h(p.spec||'')+'</td><td>'+h(p.trademark||'')+'</td><td>'+typeText+'</td><td>'+unitText+'</td><td>'+h(p.manufacturer)+'</td><td>'+price+'</td><td style="color:'+sc+'">'+stxt+'</td><td class="action-btns"><button class="btn btn-sm btn-edit" onclick="openEdit('+p.id+')">编辑</button><button class="btn btn-sm btn-danger" onclick="del('+p.id+')">删除</button></td></tr>';
     }).join('');
-  }).catch(function(){document.getElementById('dataTable').innerHTML='<tr class="empty-row"><td colspan="9">加载失败</td></tr>';});
+  }).catch(function(){document.getElementById('dataTable').innerHTML='<tr class="empty-row"><td colspan="10">加载失败</td></tr>';});
 }
 function scanBarcode(event){
   if(event.key!=='Enter') return;
   event.preventDefault();
-  var barcode=event.target.value.trim();
+  queryBarcode();
+}
+function queryBarcode(){
+  var barcode=document.getElementById('sBarcode').value.trim();
   if(!barcode){showToast('请扫描或输入条码','error');return;}
-  fetch('/physic/getByBarcode?barcode='+encodeURIComponent(barcode))
+  var button=document.getElementById('barcodeQueryBtn');
+  button.disabled=true;
+  button.textContent='查询中...';
+  fetch('/physic/scan?barcode='+encodeURIComponent(barcode))
     .then(function(r){return r.json();})
-    .then(function(p){
-      if(!p||p.code){showToast((p&&p.msg)||'未找到对应药品','error');return;}
-      showToast('已找到：'+p.name,'success');
-      openEdit(p.id);
+    .then(function(result){
+      if(!result||result.code){showToast((result&&result.msg)||'条码查询失败','error');return;}
+      if(result.source==='LOCAL'&&result.physic){
+        showToast('本地已存在，直接打开药品资料','success');
+        openEdit(result.physic.id);
+        return;
+      }
+      if(result.source==='REMOTE'&&result.external){
+        fillDrugForm(result.external);
+        document.getElementById('editId').value='';
+        document.getElementById('fSourceApi').value=result.external.sourceApi||'66-24';
+        document.getElementById('fSourcePayload').value=result.external.sourcePayload||'';
+        document.getElementById('modalTitle').textContent='确认新增药品/耗材';
+        document.getElementById('externalTip').style.display='block';
+        document.getElementById('formModal').classList.add('show');
+        showToast('已获取条码资料，请确认后保存','success');
+      }
     })
-    .catch(function(){showToast('条码查询失败','error');});
+    .catch(function(){showToast('条码查询失败','error');})
+    .finally(function(){button.disabled=false;button.textContent='查询';});
+}
+function queryFormBarcode(){
+  var barcode=document.getElementById('fBarcode').value.trim();
+  if(!barcode){showToast('请扫描或输入条码','error');return;}
+  document.getElementById('sBarcode').value=barcode;
+  queryBarcode();
 }
 function h(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function openAddModal(){document.getElementById('modalTitle').textContent='新增药品/耗材';document.getElementById('editId').value='';document.getElementById('fName').value='';document.getElementById('fType').value='10';document.getElementById('fUnit').value='1';document.getElementById('fAlias').value='';document.getElementById('fBarcode').value=document.getElementById('sBarcode').value.trim();document.getElementById('fManufacturer').value='';
-  document.getElementById('fStatus').value='1';document.getElementById('formModal').classList.add('show');}
-function openEdit(id){fetch('/physic/getById?id='+id).then(function(r){return r.json();}).then(function(p){
-  document.getElementById('modalTitle').textContent='编辑药品/耗材';document.getElementById('editId').value=p.id;
-  document.getElementById('fName').value=p.name;document.getElementById('fType').value=p.type;
-  document.getElementById('fUnit').value=p.unit;document.getElementById('fAlias').value=p.alias||'';
-  document.getElementById('fBarcode').value=p.barcode||'';
-  document.getElementById('fManufacturer').value=p.manufacturer||'';
-  document.getElementById('fStatus').value=p.status!=null?String(p.status):'1';
+var drugFields={
+  name:'fName',barcode:'fBarcode',spec:'fSpec',trademark:'fTrademark',type:'fType',unit:'fUnit',
+  alias:'fAlias',status:'fStatus',manufacturer:'fManufacturer',manufacturerAddress:'fManufacturerAddress',
+  approvalNumber:'fApprovalNumber',otcType:'fOtcType',imageUrl:'fImageUrl',dosage:'fDosage',
+  indications:'fIndications',mainIngredients:'fMainIngredients',characteristics:'fCharacteristics',
+  contraindications:'fContraindications',precautions:'fPrecautions',storageCondition:'fStorageCondition',
+  validityPeriod:'fValidityPeriod',otherNotes:'fOtherNotes',note:'fNote'
+};
+function resetDrugForm(){
+  Object.keys(drugFields).forEach(function(key){var el=document.getElementById(drugFields[key]);if(el)el.value='';});
+  document.getElementById('editId').value='';
+  document.getElementById('fType').value='10';
+  document.getElementById('fUnit').value='1';
+  document.getElementById('fStatus').value='1';
+  document.getElementById('fSellingPrice').value='';
+  document.getElementById('fOtcType').value='';
+  document.getElementById('fSourceApi').value='MANUAL';
+  document.getElementById('fSourcePayload').value='';
+  document.getElementById('externalTip').style.display='none';
+}
+function fillDrugForm(data){
+  document.getElementById('fSellingPrice').value='';
+  Object.keys(drugFields).forEach(function(key){
+    var el=document.getElementById(drugFields[key]);
+    if(!el)return;
+    var value=data[key];
+    el.value=value===null||value===undefined?'':value;
+  });
+  document.getElementById('editId').value=data.id||'';
+  document.getElementById('fSourceApi').value=data.sourceApi||'';
+  document.getElementById('fSourcePayload').value=data.sourcePayload||'';
+  document.getElementById('externalTip').style.display=data.sourceApi?'block':'none';
+  if(!document.getElementById('fType').value)document.getElementById('fType').value='10';
+  if(!document.getElementById('fUnit').value)document.getElementById('fUnit').value='0';
+  if(!document.getElementById('fStatus').value)document.getElementById('fStatus').value='1';
+}
+function openAddModal(){
+  resetDrugForm();
+  document.getElementById('fBarcode').value=document.getElementById('sBarcode').value.trim();
+  document.getElementById('modalTitle').textContent='新增药品/耗材';
   document.getElementById('formModal').classList.add('show');
-}).catch(function(){showToast('获取信息失败','error');});}
+}
+function openEdit(id){
+  fetch('/physic/getById?id='+id).then(function(r){return r.json();}).then(function(p){
+    fillDrugForm(p);
+    fetch('/sp/getByPid?pid='+id+'&status=1').then(function(r){return r.json();}).then(function(prices){
+      if(prices&&prices.length){document.getElementById('fSellingPrice').value=prices[0].price;}
+      else{document.getElementById('fSellingPrice').value='';}
+    }).catch(function(){});
+    document.getElementById('modalTitle').textContent='编辑药品/耗材';
+    document.getElementById('formModal').classList.add('show');
+  }).catch(function(){showToast('获取信息失败','error');});
+}
 function closeModal(){document.getElementById('formModal').classList.remove('show');}
 function save(){
   var id=document.getElementById('editId').value;
   var name=document.getElementById('fName').value.trim();
+  var sellingPrice=parseFloat(document.getElementById('fSellingPrice').value);
   if(!name){showToast('请输入名称','error');return;}
-  var body={name:name,type:parseInt(document.getElementById('fType').value),unit:parseInt(document.getElementById('fUnit').value),
-    alias:document.getElementById('fAlias').value.trim(),barcode:document.getElementById('fBarcode').value.trim(),manufacturer:document.getElementById('fManufacturer').value.trim(),status:parseInt(document.getElementById('fStatus').value)};
+  if(!sellingPrice||sellingPrice<=0){showToast('请输入有效销售价','error');return;}
+  var body={};
+  Object.keys(drugFields).forEach(function(key){
+    var el=document.getElementById(drugFields[key]);
+    if(!el)return;
+    body[key]=el.value.trim();
+  });
+  body.type=parseInt(document.getElementById('fType').value);
+  body.unit=parseInt(document.getElementById('fUnit').value);
+  body.status=parseInt(document.getElementById('fStatus').value);
+  body.otcType=document.getElementById('fOtcType').value?parseInt(document.getElementById('fOtcType').value):null;
+  body.sourceApi=document.getElementById('fSourceApi').value||'MANUAL';
+  body.sourcePayload=document.getElementById('fSourcePayload').value||null;
+  body.dataVerified=1;
+  body.sellingPrice=sellingPrice;
   if(id){body.id=parseInt(id);}
   fetch(id?'/physic/upd':'/physic/add',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(resp){
-      if(resp.code===200||resp.code===undefined){showToast(id?'更新成功':'添加成功','success');closeModal();loadList();}
+      if(resp.code===200||resp.code===undefined){
+        showToast(id?'更新成功':'添加成功','success');closeModal();loadList();
+      }
       else{showToast(resp.msg||'操作失败','error');}
     }).catch(function(){showToast('操作失败','error');});
 }

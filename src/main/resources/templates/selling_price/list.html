@@ -58,8 +58,8 @@ td{padding:12px 16px;font-size:13px;color:#333;border-bottom:1px solid #f0f0f0}t
 <div style="display:flex;gap:8px;align-items:flex-end"><button class="btn btn-primary" onclick="loadList()">🔍 搜索</button><button class="btn" style="background:#fff;border:1px solid #d9d9d9" onclick="resetSearch()">↺ 重置</button></div>
 </div>
 <div class="table-card"><table>
-<thead><tr><th>ID</th><th>药品</th><th>售价</th><th>状态</th><th>操作</th></tr></thead>
-<tbody id="dataTable"><tr class="empty-row"><td colspan="5">加载中...</td></tr></tbody>
+<thead><tr><th>药品</th><th>售价</th><th>状态</th><th>操作</th></tr></thead>
+<tbody id="dataTable"><tr class="empty-row"><td colspan="4">加载中...</td></tr></tbody>
 </table></div></div>
 
 <div class="modal-overlay" id="formModal"><div class="modal">
@@ -83,7 +83,7 @@ function resetSearch(){document.getElementById('sName').value='';document.getEle
 function loadList(){
   var q=document.getElementById('sName').value.trim();
   var type=parseInt(document.getElementById('sType').value);
-  document.getElementById('dataTable').innerHTML='<tr class="empty-row"><td colspan="5">加载中...</td></tr>';
+  document.getElementById('dataTable').innerHTML='<tr class="empty-row"><td colspan="4">加载中...</td></tr>';
   // 先加载药品列表，再加载售价列表
   fetch('/physic/list?name=').then(r=>r.json()).then(function(d){
     allDrugs=d||[];drugMap={};
@@ -102,14 +102,14 @@ function loadList(){
       });
     }
     var t=document.getElementById('dataTable');
-    if(!list.length){t.innerHTML='<tr class="empty-row"><td colspan="5">暂无数据</td></tr>';return;}
+    if(!list.length){t.innerHTML='<tr class="empty-row"><td colspan="4">暂无数据</td></tr>';return;}
     t.innerHTML=list.map(function(item){
       var drug=drugMap[item.physic];
       var dn=drug?drug.name:'未知';
       var st=statusText(item.status);var sc=statusColor(item.status);
-      return '<tr><td>'+item.id+'</td><td>'+h(dn)+'</td><td>'+item.price+'</td><td style="color:'+sc+'">'+st+'</td><td class="action-btns"><button class="btn btn-sm btn-primary" onclick="openEdit('+item.id+')">编辑</button><button class="btn btn-sm btn-danger" onclick="delPrice('+item.id+')">删除</button></td></tr>';
+      return '<tr><td>'+h(dn)+'</td><td>'+item.price+'</td><td style="color:'+sc+'">'+st+'</td><td class="action-btns"><button class="btn btn-sm btn-primary" onclick="openEdit('+item.id+')">编辑</button><button class="btn btn-sm btn-danger" onclick="delPrice('+item.id+')">删除</button></td></tr>';
     }).join('');
-  }).catch(function(){document.getElementById('dataTable').innerHTML='<tr class="empty-row"><td colspan="5">加载失败</td></tr>';});
+  }).catch(function(){document.getElementById('dataTable').innerHTML='<tr class="empty-row"><td colspan="4">加载失败</td></tr>';});
 }
 
 function searchDrugs(){

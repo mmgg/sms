@@ -39,7 +39,7 @@ td{padding:10px 14px;font-size:13px;color:#333;border-bottom:1px solid #f0f0f0}t
 <aside class="sidebar"><div class="logo">诊所<span>管理</span></div><nav>
 <a href="/dashboard">📊 仪表盘</a><a href="/patients">👤 患者管理</a><a href="/physic">💊 药品/耗材</a>
 <a href="/purchase">📦 进货管理</a><a href="/prescription">📋 处方管理</a><a href="/inventory">🏪 库存查询</a><a href="/selling-price">💰 售价管理</a>
-<a href="/selling-price">💰 售价管理</a><a href="/report" class="active">📈 报表统计</a><a href="/user">👥 用户管理</a>
+<a href="/report" class="active">📈 报表统计</a><a href="/user">👥 用户管理</a>
 </nav>
 <div class="session-user-box">
 <span class="session-user-name">当前用户：<span data-current-user-name>加载中...</span></span>
@@ -79,7 +79,12 @@ td{padding:10px 14px;font-size:13px;color:#333;border-bottom:1px solid #f0f0f0}t
 </div></div>
 <div class="table-card">
 <div class="tc-header"><h4>药品利润明细</h4>
+<div style="display:flex;gap:8px;align-items:center">
+<select id="profitDrugLimit" onchange="loadProfitDrug()" style="padding:6px 10px;border:1px solid #d9d9d9;border-radius:6px">
+<option value="10">Top 10</option><option value="20">Top 20</option><option value="50">Top 50</option><option value="100">Top 100</option>
+</select>
 <button class="btn btn-sm btn-success" onclick="down('profitByDrug')">📥 导出 Excel</button>
+</div>
 </div>
 <table><thead><tr><th>药品名称</th><th>类型</th><th>销量</th><th>利润(元)</th></tr></thead>
 <tbody id="profitDrugTable"><tr class="empty"><td colspan="4">加载中...</td></tr></tbody></table>
@@ -87,23 +92,16 @@ td{padding:10px 14px;font-size:13px;color:#333;border-bottom:1px solid #f0f0f0}t
 
 <!-- ===== PROFIT: PRESCRIPTION ===== -->
 <div class="report-content" id="rProfitRx">
-<div class="chart-row"><div class="chart-card">
-<h4>处方利润分布</h4><canvas id="profitRxChart" width="360" height="320"></canvas>
-</div></div>
 <div class="table-card">
 <div class="tc-header"><h4>处方利润明细</h4>
 <button class="btn btn-sm btn-success" onclick="down('profitByPrescription')">📥 导出 Excel</button>
 </div>
-<table><thead><tr><th>处方ID</th><th>患者</th><th>药品数</th><th>利润(元)</th><th>创建时间</th></tr></thead>
-<tbody id="profitRxTable"><tr class="empty"><td colspan="5">加载中...</td></tr></tbody></table>
+<table><thead><tr><th>患者</th><th>药品数</th><th>利润(元)</th><th>创建时间</th></tr></thead>
+<tbody id="profitRxTable"><tr class="empty"><td colspan="4">加载中...</td></tr></tbody></table>
 </div></div>
 
 <!-- ===== SALES ===== -->
 <div class="report-content" id="rSales">
-<div class="chart-row">
-<div class="chart-card"><h4>药品销量分布</h4><canvas id="salesDrugChart" width="360" height="320"></canvas></div>
-<div class="chart-card"><h4>类型销量分布</h4><canvas id="salesTypeChart" width="360" height="320"></canvas></div>
-</div>
 <div class="table-card">
 <div class="tc-header"><h4>药品销量明细</h4>
 <button class="btn btn-sm btn-success" onclick="down('salesByDrug')">📥 导出 Excel</button>
@@ -114,10 +112,6 @@ td{padding:10px 14px;font-size:13px;color:#333;border-bottom:1px solid #f0f0f0}t
 
 <!-- ===== INVENTORY ===== -->
 <div class="report-content" id="rInventory">
-<div class="chart-row">
-<div class="chart-card"><h4>药品分布</h4><canvas id="invDrugChart" width="360" height="320"></canvas></div>
-<div class="chart-card"><h4>按状态分布</h4><canvas id="invStatusChart" width="360" height="320"></canvas></div>
-</div>
 <div class="table-card">
 <div class="tc-header"><h4>库存明细</h4>
 <button class="btn btn-sm btn-success" onclick="down('inventory')">📥 导出 Excel</button>
@@ -203,28 +197,32 @@ function ajaxFetch(url,opts){
 function down(type){window.location.href='/api/report/export?type='+type;}
 
 function h(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function topProfitDrugs(list){
+  var limit=parseInt(document.getElementById('profitDrugLimit').value)||10;
+  return (list||[]).slice(0,limit);
+}
 
 // === LOAD PROFIT ===
 function loadProfitDrug(){
   document.getElementById('profitDrugTable').innerHTML='<tr class="empty"><td colspan="4">加载中...</td></tr>';
   ajaxFetch('/api/report/profit-by-drug').then(function(r){return r.json();}).then(function(d){
     var list=d||[];
-    drawPie('profitDrugChart',list,'physicName','profit',function(v){return v.physicName;});
+    var chartData=topProfitDrugs(list);
+    drawPie('profitDrugChart',chartData,'physicName','profit',function(v){return v.physicName;});
     var t=document.getElementById('profitDrugTable');
-    if(!list.length){t.innerHTML='<tr class="empty"><td colspan="4">暂无数据</td></tr>';return;}
-    t.innerHTML=list.map(function(v){return '<tr><td>'+h(v.physicName)+'</td><td>'+v.typeName+'</td><td>'+v.quantity+'</td><td>'+(v.profit||0).toFixed(2)+'</td></tr>';}).join('');
+    if(!chartData.length){t.innerHTML='<tr class="empty"><td colspan="4">暂无数据</td></tr>';return;}
+    t.innerHTML=chartData.map(function(v){return '<tr><td>'+h(v.physicName)+'</td><td>'+v.typeName+'</td><td>'+v.quantity+'</td><td>'+(v.profit||0).toFixed(2)+'</td></tr>';}).join('');
   }).catch(function(){document.getElementById('profitDrugTable').innerHTML='<tr class="empty"><td colspan="4">加载失败</td></tr>';});
 }
 
 function loadProfitRx(){
-  document.getElementById('profitRxTable').innerHTML='<tr class="empty"><td colspan="5">加载中...</td></tr>';
+  document.getElementById('profitRxTable').innerHTML='<tr class="empty"><td colspan="4">加载中...</td></tr>';
   ajaxFetch('/api/report/profit-by-prescription').then(function(r){return r.json();}).then(function(d){
     var list=d||[];
-    drawPie('profitRxChart',list,'patientName','profit',function(v){return '#'+v.prescriptionId+' '+v.patientName;});
     var t=document.getElementById('profitRxTable');
-    if(!list.length){t.innerHTML='<tr class="empty"><td colspan="5">暂无数据</td></tr>';return;}
-    t.innerHTML=list.map(function(v){return '<tr><td>#'+v.prescriptionId+'</td><td>'+h(v.patientName)+'</td><td>'+v.itemCount+'</td><td>'+(v.profit||0).toFixed(2)+'</td><td>'+(v.createTime||'-')+'</td></tr>';}).join('');
-  }).catch(function(){document.getElementById('profitRxTable').innerHTML='<tr class="empty"><td colspan="5">加载失败</td></tr>';});
+    if(!list.length){t.innerHTML='<tr class="empty"><td colspan="4">暂无数据</td></tr>';return;}
+    t.innerHTML=list.map(function(v){return '<tr><td>'+h(v.patientName)+'</td><td>'+v.itemCount+'</td><td>'+(v.profit||0).toFixed(2)+'</td><td>'+(v.createTime||'-')+'</td></tr>';}).join('');
+  }).catch(function(){document.getElementById('profitRxTable').innerHTML='<tr class="empty"><td colspan="4">加载失败</td></tr>';});
 }
 
 // === LOAD SALES ===
@@ -235,8 +233,6 @@ function loadSales(){
     ajaxFetch('/api/report/sales-by-type').then(function(r){return r.json();})
   ]).then(function(results){
     var drugData=results[0]||[],typeData=results[1]||[];
-    drawPie('salesDrugChart',drugData,'physicName','quantity',function(v){return v.physicName;});
-    drawPie('salesTypeChart',typeData,'typeName','quantity',function(v){return v.typeName;});
     var t=document.getElementById('salesTable');
     if(!drugData.length){t.innerHTML='<tr class="empty"><td colspan="3">暂无数据</td></tr>';return;}
     t.innerHTML=drugData.map(function(v){return '<tr><td>'+h(v.physicName)+'</td><td>'+v.typeName+'</td><td>'+v.quantity+'</td></tr>';}).join('');
@@ -252,8 +248,6 @@ function loadInventory(){
   ]).then(function(results){
     var drugData=results[0]||[],statusData=results[1]||[];
     drugData.forEach(function(v){v.total=(parseInt(v.availableQty)||0)+(parseInt(v.occupiedQty)||0);});
-    drawPie('invDrugChart',drugData,'physicName','total',function(v){return v.physicName;});
-    drawPie('invStatusChart',statusData,'statusName','count',function(v){return v.statusName;});
     var t=document.getElementById('inventoryTable');
     if(!drugData.length){t.innerHTML='<tr class="empty"><td colspan="4">暂无数据</td></tr>';return;}
     t.innerHTML=drugData.map(function(v){
@@ -281,23 +275,23 @@ loadProfitDrug = function(){var tq=getTimeQ();
   document.getElementById('profitDrugTable').innerHTML='<tr class="empty"><td colspan="4">加载中...</td></tr>';
   ajaxFetch('/api/report/profit-by-drug'+tq).then(function(r){return r.json();}).then(function(d){
     var list=d||[];
-    drawPie('profitDrugChart',list,'physicName','profit',function(v){return v.physicName;});
+    var chartData=topProfitDrugs(list);
+    drawPie('profitDrugChart',chartData,'physicName','profit',function(v){return v.physicName;});
     var t=document.getElementById('profitDrugTable');
-    if(!list.length){t.innerHTML='<tr class="empty"><td colspan="4">暂无数据</td></tr>';return;}
-    t.innerHTML=list.map(function(v){return '<tr><td>'+h(v.physicName)+'</td><td>'+v.typeName+'</td><td>'+v.quantity+'</td><td>'+(v.profit||0).toFixed(2)+'</td></tr>';}).join('');
+    if(!chartData.length){t.innerHTML='<tr class="empty"><td colspan="4">暂无数据</td></tr>';return;}
+    t.innerHTML=chartData.map(function(v){return '<tr><td>'+h(v.physicName)+'</td><td>'+v.typeName+'</td><td>'+v.quantity+'</td><td>'+(v.profit||0).toFixed(2)+'</td></tr>';}).join('');
   }).catch(function(){document.getElementById('profitDrugTable').innerHTML='<tr class="empty"><td colspan="4">加载失败</td></tr>';});
 };
 
 var _loadProfitRx = loadProfitRx;
 loadProfitRx = function(){var tq=getTimeQ();
-  document.getElementById('profitRxTable').innerHTML='<tr class="empty"><td colspan="5">加载中...</td></tr>';
+  document.getElementById('profitRxTable').innerHTML='<tr class="empty"><td colspan="4">加载中...</td></tr>';
   ajaxFetch('/api/report/profit-by-prescription'+tq).then(function(r){return r.json();}).then(function(d){
     var list=d||[];
-    drawPie('profitRxChart',list,'patientName','profit',function(v){return '#'+v.prescriptionId+' '+v.patientName;});
     var t=document.getElementById('profitRxTable');
-    if(!list.length){t.innerHTML='<tr class="empty"><td colspan="5">暂无数据</td></tr>';return;}
-    t.innerHTML=list.map(function(v){return '<tr><td>#'+v.prescriptionId+'</td><td>'+h(v.patientName)+'</td><td>'+v.itemCount+'</td><td>'+(v.profit||0).toFixed(2)+'</td><td>'+(v.createTime||'-')+'</td></tr>';}).join('');
-  }).catch(function(){document.getElementById('profitRxTable').innerHTML='<tr class="empty"><td colspan="5">加载失败</td></tr>';});
+    if(!list.length){t.innerHTML='<tr class="empty"><td colspan="4">暂无数据</td></tr>';return;}
+    t.innerHTML=list.map(function(v){return '<tr><td>'+h(v.patientName)+'</td><td>'+v.itemCount+'</td><td>'+(v.profit||0).toFixed(2)+'</td><td>'+(v.createTime||'-')+'</td></tr>';}).join('');
+  }).catch(function(){document.getElementById('profitRxTable').innerHTML='<tr class="empty"><td colspan="4">加载失败</td></tr>';});
 };
 
 var _loadSales = loadSales;
@@ -308,8 +302,6 @@ loadSales = function(){var tq=getTimeQ();
     ajaxFetch('/api/report/sales-by-type'+tq).then(function(r){return r.json();})
   ]).then(function(results){
     var drugData=results[0]||[],typeData=results[1]||[];
-    drawPie('salesDrugChart',drugData,'physicName','quantity',function(v){return v.physicName;});
-    drawPie('salesTypeChart',typeData,'typeName','quantity',function(v){return v.typeName;});
     var t=document.getElementById('salesTable');
     if(!drugData.length){t.innerHTML='<tr class="empty"><td colspan="3">暂无数据</td></tr>';return;}
     t.innerHTML=drugData.map(function(v){return '<tr><td>'+h(v.physicName)+'</td><td>'+v.typeName+'</td><td>'+v.quantity+'</td></tr>';}).join('');
@@ -325,8 +317,6 @@ loadInventory = function(){var tq=getTimeQ();
   ]).then(function(results){
     var drugData=results[0]||[],statusData=results[1]||[];
     drugData.forEach(function(v){v.total=(parseInt(v.availableQty)||0)+(parseInt(v.occupiedQty)||0);});
-    drawPie('invDrugChart',drugData,'physicName','total',function(v){return v.physicName;});
-    drawPie('invStatusChart',statusData,'statusName','count',function(v){return v.statusName;});
     var t=document.getElementById('inventoryTable');
     if(!drugData.length){t.innerHTML='<tr class="empty"><td colspan="4">暂无数据</td></tr>';return;}
     t.innerHTML=drugData.map(function(v){

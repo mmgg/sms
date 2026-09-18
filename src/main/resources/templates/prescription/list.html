@@ -60,8 +60,8 @@ td{padding:12px 16px;font-size:13px;color:#333;border-bottom:1px solid #f0f0f0}t
 </div>
 
 <div class="table-card"><table>
-<thead><tr><th>ID</th><th>患者</th><th>开方人</th><th>医嘱</th><th>创建时间</th><th>状态</th><th>操作</th></tr></thead>
-<tbody id="rxTable"><tr class="empty-row"><td colspan="7">加载中...</td></tr></tbody>
+<thead><tr><th>患者</th><th>开方人</th><th>药品名称与数量</th><th>总价(元)</th><th>医嘱</th><th>创建时间</th><th>状态</th><th>操作</th></tr></thead>
+<tbody id="rxTable"><tr class="empty-row"><td colspan="8">加载中...</td></tr></tbody>
 </table></div></div>
 
 <div class="modal-overlay" id="rxModal"><div class="modal">
@@ -83,7 +83,7 @@ td{padding:12px 16px;font-size:13px;color:#333;border-bottom:1px solid #f0f0f0}t
 </div>
 <div class="search-list" id="physicList"></div>
 <div class="items-table">
-<table><thead><tr><th>药品</th><th>数量</th><th>操作</th></tr></thead>
+<table><thead><tr><th>药品</th><th>数量</th><th>用法用量</th><th>操作</th></tr></thead>
 <tbody id="rxItems"></tbody></table>
 </div>
 </div>
@@ -101,7 +101,7 @@ td{padding:12px 16px;font-size:13px;color:#333;border-bottom:1px solid #f0f0f0}t
 
 <div class="toast" id="toast"></div>
 <script>
-var rxPhysicItems=[],patients=[],physics=[],selectedPatient=null,selectedPhysicId=null;
+var rxPhysicItems=[],patients=[],physics=[],selectedPatient=null,selectedPhysicId=null,editingRxId=null;
 function statusText(s){return s===1?"正常":s===0?"待设置":s===-1?"停用":s===2?"占用":"未知";}function statusColor(s){return s===1?"#52c41a":s===0?"#faad14":s===-1?"#ff4d4f":s===2?"#1890ff":"#999";}
 function ajaxFetch(url,opts){opts=opts||{};opts.credentials=opts.credentials||"same-origin";opts.headers=opts.headers||{};opts.headers["X-Requested-With"]="XMLHttpRequest";return fetch(url,opts).then(function(r){if(r.status===401){window.location.href="/login";throw new Error("未登录");}return r;});}
 function showToast(m,t){var e=document.getElementById('toast');e.textContent=m;e.className='toast '+t;e.style.display='block';setTimeout(function(){e.style.display='none'},2500);}
@@ -114,13 +114,13 @@ function loadRx(){
   if(st) params.push('startTime='+encodeURIComponent(st+'T00:00:00'));
   if(et) params.push('endTime='+encodeURIComponent(et+'T23:59:59'));
   var qs=params.length?'?'+params.join('&'):'';
-  document.getElementById('rxTable').innerHTML='<tr class="empty-row"><td colspan="7">加载中...</td></tr>';
+  document.getElementById('rxTable').innerHTML='<tr class="empty-row"><td colspan="8">加载中...</td></tr>';
   ajaxFetch('/prescription/list'+qs).then(r=>r.json()).then(d=>{
     var t=document.getElementById('rxTable');
-    if(!d||d.length===0){t.innerHTML='<tr class="empty-row"><td colspan="7">暂无数据</td></tr>';return;}
+    if(!d||d.length===0){t.innerHTML='<tr class="empty-row"><td colspan="8">暂无数据</td></tr>';return;}
     t.innerHTML=d.map(function(rx){
       var st=statusText(rx.status);var sc=statusColor(rx.status);
-      return '<tr><td>'+rx.id+'</td><td>'+h(rx.patientName)+'</td><td>'+h(rx.userName)+'</td><td>'+h(rx.comments||'').substring(0,30)+'</td><td>'+(rx.createTime?rx.createTime.substring(0,19):'-')+'</td><td style="color:'+sc+'">'+st+'</td><td class="action-btns"><button class="btn btn-sm btn-edit" onclick="detailRx('+rx.id+')">详情</button><button class="btn btn-sm btn-success" onclick="printRx('+rx.id+')">打印</button><button class="btn btn-sm btn-danger" onclick="delRx('+rx.id+')">删除</button></td></tr>';
+      return '<tr><td>'+h(rx.patientName)+'</td><td>'+h(rx.userName)+'</td><td>'+h(rx.medicineSummary||'')+'</td><td>￥'+(Number(rx.totalAmount)||0).toFixed(2)+'</td><td>'+h(rx.comments||'').substring(0,30)+'</td><td>'+(rx.createTime?rx.createTime.substring(0,19):'-')+'</td><td style="color:'+sc+'">'+st+'</td><td class="action-btns"><button class="btn btn-sm btn-edit" onclick="detailRx('+rx.id+')">详情</button><button class="btn btn-sm btn-primary" onclick="openEditRx('+rx.id+')">编辑</button><button class="btn btn-sm btn-success" onclick="printRx('+rx.id+')">打印</button><button class="btn btn-sm btn-danger" onclick="delRx('+rx.id+')">删除</button></td></tr>';
     }).join('');
   }).catch(function(){showToast('加载处方列表失败','error');});
 }
@@ -140,15 +140,15 @@ function detailRx(id){
     if(cc)html+='<div class="form-group"><label>医嘱</label><div>'+cc+'</div></div>';
     html+='<div class="form-group"><label>创建时间</label><div>'+(ct?ct.substring(0,19):'-')+'</div></div><div class="form-group"><label>药品明细</label></div>';
     if(items.length){
-      html+='<table style="width:100%;border-collapse:collapse"><thead style="background:#fafafa"><tr><th style="padding:8px 10px;text-align:left;font-size:12px;color:#666;border-bottom:1px solid #f0f0f0">药品</th><th style="padding:8px 10px;text-align:left;font-size:12px;color:#666;border-bottom:1px solid #f0f0f0">数量</th><th style="padding:8px 10px;text-align:left;font-size:12px;color:#666;border-bottom:1px solid #f0f0f0">单价</th><th style="padding:8px 10px;text-align:left;font-size:12px;color:#666;border-bottom:1px solid #f0f0f0">小计</th></tr></thead><tbody>';
+      html+='<table style="width:100%;border-collapse:collapse"><thead style="background:#fafafa"><tr><th style="padding:8px 10px;text-align:left;font-size:12px;color:#666;border-bottom:1px solid #f0f0f0">药品</th><th style="padding:8px 10px;text-align:left;font-size:12px;color:#666;border-bottom:1px solid #f0f0f0">数量</th><th style="padding:8px 10px;text-align:left;font-size:12px;color:#666;border-bottom:1px solid #f0f0f0">单价</th><th style="padding:8px 10px;text-align:left;font-size:12px;color:#666;border-bottom:1px solid #f0f0f0">总价</th></tr></thead><tbody>';
       for(var i=0;i<items.length;i++){
         var dn=items[i].physic?items[i].physic.name:'未知';
-        var unitPrice=items[i].sellingPrice?(Number(items[i].sellingPrice.price)||0):0;
-        html+='<tr><td style="padding:8px 10px;font-size:12px;color:#333;border-bottom:1px solid #f0f0f0">'+dn+'</td><td style="padding:8px 10px;font-size:12px;color:#333;border-bottom:1px solid #f0f0f0">'+items[i].num+'</td><td style="padding:8px 10px;font-size:12px;color:#333;border-bottom:1px solid #f0f0f0">￥'+unitPrice.toFixed(2)+'</td><td style="padding:8px 10px;font-size:12px;color:#333;border-bottom:1px solid #f0f0f0">￥'+(unitPrice*(Number(items[i].num)||0)).toFixed(2)+'</td></tr>';
+        html+='<tr><td style="padding:8px 10px;font-size:12px;color:#333;border-bottom:1px solid #f0f0f0">'+dn+'</td><td style="padding:8px 10px;font-size:12px;color:#333;border-bottom:1px solid #f0f0f0">'+items[i].num+'</td><td style="padding:8px 10px;font-size:12px;color:#333;border-bottom:1px solid #f0f0f0">￥'+(Number(items[i].unitPrice)||0).toFixed(2)+'</td><td style="padding:8px 10px;font-size:12px;color:#333;border-bottom:1px solid #f0f0f0">￥'+(Number(items[i].lineAmount)||0).toFixed(2)+'</td></tr>';
       }
-      html+='</tbody></table>';
+    html+='</tbody></table>';
+    html+='<div class="form-group" style="margin-top:12px;text-align:right;font-weight:600;font-size:15px">处方总价：￥'+(Number(d.totalAmount)||0).toFixed(2)+'</div>';
     }else{html+='<p style="color:#999;padding:8px 0">暂无药品</p>';}
-    document.getElementById('detailTitle').textContent='处方详情 #'+id;
+    document.getElementById('detailTitle').textContent='处方详情';
     document.getElementById('detailBody').innerHTML=html;
     document.getElementById('detailPrintBtn').onclick=function(){printRx(id);};
     document.getElementById('detailModal').classList.add('show');
@@ -225,21 +225,40 @@ function addPhysicItem(){
   ajaxFetch('/inventory/summary').then(function(r){return r.json();}).then(function(st){
     var si=st.find(function(x){return x.physicId==p.id;});var av=si?si.availableQty:0;
     if(qty>av){showToast('库存不足！'+p.name+' 可用: '+av,'error');return;}
-    rxPhysicItems.push({id:p.id,name:p.name,qty:qty});renderRxItems();
+    rxPhysicItems.push({id:p.id,name:p.name,qty:qty,usage:p.dosage||''});renderRxItems();
     selectedPhysicId=null;
     document.getElementById('rxPhysicSearch').value='';document.getElementById('rxPhysicQty').value='1';
   }).catch(function(){showToast('获取库存信息失败','error');});
 }
 function renderRxItems(){
   var t=document.getElementById('rxItems');
-  if(rxPhysicItems.length===0){t.innerHTML='<tr><td colspan="3" style="text-align:center;color:#999;padding:12px">暂无药品</td></tr>';return;}
-  t.innerHTML=rxPhysicItems.map(function(item,i){return '<tr><td>'+h(item.name)+'</td><td>'+item.qty+'</td><td><button class="btn btn-sm btn-danger" onclick="removeItem('+i+')">移除</button></td></tr>';}).join('');
+  if(rxPhysicItems.length===0){t.innerHTML='<tr><td colspan="4" style="text-align:center;color:#999;padding:12px">暂无药品</td></tr>';return;}
+  t.innerHTML=rxPhysicItems.map(function(item,i){return '<tr><td>'+h(item.name)+'</td><td>'+item.qty+'</td><td><input value="'+h(item.usage||'')+'" onchange="updateItemUsage('+i+',this.value)"></td><td><button class="btn btn-sm btn-danger" onclick="removeItem('+i+')">移除</button></td></tr>';}).join('');
 }
 function removeItem(i){rxPhysicItems.splice(i,1);renderRxItems();}
+function updateItemUsage(i,value){if(rxPhysicItems[i])rxPhysicItems[i].usage=value;}
 function openNewRx(){
-  selectedPatient=null;selectedPhysicId=null;rxPhysicItems=[];document.getElementById('rxPatientId').value='';
+  editingRxId=null;selectedPatient=null;selectedPhysicId=null;rxPhysicItems=[];document.getElementById('rxPatientId').value='';
   document.getElementById('rxPatientSearch').value='';document.getElementById('rxPatientDisplay').style.display='none';
   document.getElementById('rxComments').value='';renderRxItems();document.getElementById('rxModal').classList.add('show');
+}
+
+function openEditRx(id){
+  ajaxFetch('/prescription/getDetailById?id='+id).then(function(r){return r.json();}).then(function(data){
+    if(!data||!data.prescription){showToast('处方数据加载失败','error');return;}
+    editingRxId=id;
+    selectedPatient={id:data.patient.id,name:data.patient.name,phone:data.patient.phone};
+    document.getElementById('rxPatientId').value=data.patient.id;
+    document.getElementById('rxPatientSearch').value=data.patient.name+' ('+data.patient.phone+')';
+    document.getElementById('rxPatientDisplay').textContent='已选: '+data.patient.name+' | '+data.patient.phone;
+    document.getElementById('rxPatientDisplay').style.display='block';
+    document.getElementById('rxComments').value=data.prescription.comments||'';
+    rxPhysicItems=(data.prescriptionPhysicDetailVos||[]).map(function(item){
+      return {id:item.physic.id,name:item.physic.name,qty:item.num,usage:item.remarks||item.physic.dosage||''};
+    });
+    renderRxItems();
+    document.getElementById('rxModal').classList.add('show');
+  }).catch(function(){showToast('处方数据加载失败','error');});
 }
 function resetSearch(){document.getElementById('sPatientName').value='';document.getElementById('sStartTime').value='';document.getElementById('sEndTime').value='';loadRx();}
 function closeRx(){document.getElementById('rxModal').classList.remove('show');}
@@ -252,11 +271,12 @@ function saveRx(){
     if(uresp.code!==200){showToast('未登录','error');return;}
     var uid=uresp.data.id;
     // Step 2: 创建处方
-    var items=rxPhysicItems.map(function(it){return {physic:parseInt(it.id),num:it.qty,selling:0};});
-      ajaxFetch('/prescription/createWithItems',{method:'POST',headers:{'Content-Type':'application/json'},
+    var items=rxPhysicItems.map(function(it){return {physic:parseInt(it.id),num:it.qty,selling:0,remarks:it.usage||''};});
+      var url=editingRxId?'/prescription/updateWithItems?id='+editingRxId:'/prescription/createWithItems';
+      ajaxFetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({patient:parseInt(pid),user:uid,comments:comments||'',items:items})
       }).then(function(r){return r.json();}).then(function(resp){
-        if(resp.code===200){showToast('处方创建成功','success');closeRx();loadRx();}
+        if(resp.code===200){showToast(editingRxId?'处方更新成功':'处方创建成功','success');closeRx();loadRx();}
         else{showToast(resp.msg||'创建失败','error');}
       }).catch(function(){showToast('操作失败','error');});
     }).catch(function(){showToast('获取用户信息失败','error');});

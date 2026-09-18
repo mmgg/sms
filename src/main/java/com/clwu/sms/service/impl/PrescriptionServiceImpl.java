@@ -168,6 +168,7 @@ public class PrescriptionServiceImpl implements PrescriptionService {
             pp.setPhysic(item.getPhysic());
             pp.setNum(item.getNum());
             pp.setSelling(item.getSelling() != null ? item.getSelling() : 0L);
+            pp.setRemarks(item.getRemarks());
             pp.setStatus(StatusEnum.US_ENABLED.getCode());
             List<SellingPrice> sellingPriceList = sellingPricingService.findSellingPriceByPhysic(item.getPhysic(), StatusEnum.US_ENABLED.getCode());
             if (sellingPriceList.size() != 1) {
@@ -193,6 +194,67 @@ public class PrescriptionServiceImpl implements PrescriptionService {
         log.info("创建处方成功: prescriptionId={}, patientId={}, itemCount={}",
                 rxId, request.getPatient(), request.getItems().size());
         return rxId;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updatePrescriptionWithItems(Long prescriptionId, PrescriptionRequest request) {
+        if (prescriptionId == null || prescriptionId <= 0L) {
+            throw new BusinessException(400, "处方ID不合法");
+        }
+        validateCreateRequest(request);
+        Prescription prescription = perscriptionMapper.selectById(prescriptionId);
+        if (prescription == null) {
+            throw new BusinessException(404, "处方不存在");
+        }
+
+        List<PrescriptionPhysic> existingItems = prescriptionPhysicService.findPrescriptionPhysic(
+                prescriptionId, StatusEnum.US_ENABLED.getCode());
+        for (PrescriptionPhysic item : existingItems) {
+            prescriptionPhysicService.deleteWithStockRelease(item.getId());
+        }
+
+        prescription.setComments(request.getComments() == null ? "" : request.getComments());
+        perscriptionMapper.updateById(prescription);
+        addItemsToPrescription(prescriptionId, request);
+        log.info("更新处方成功: prescriptionId={}, itemCount={}",
+                prescriptionId, request.getItems().size());
+    }
+
+    private void addItemsToPrescription(Long prescriptionId, PrescriptionRequest request) {
+        for (PrescriptionRequest.Item item : request.getItems()) {
+            int available = parchaseDetailMapper.selectCountForLock(
+                    item.getPhysic(), StatusEnum.US_ENABLED.getCode());
+            if (available < item.getNum()) {
+                Physic physic = physicService.findPhysicById(item.getPhysic());
+                String name = physic != null ? physic.getName() : "未知";
+                throw new BusinessException(400,
+                        "库存不足: " + name + " (需" + item.getNum() + ", 可用" + available + ")");
+            }
+
+            List<SellingPrice> sellingPriceList = sellingPricingService.findSellingPriceByPhysic(
+                    item.getPhysic(), StatusEnum.US_ENABLED.getCode());
+            if (sellingPriceList.size() != 1) {
+                throw new BusinessException(400, item.getPhysic() + "药品的售价配置有问题，请检查");
+            }
+
+            PrescriptionPhysic pp = new PrescriptionPhysic();
+            pp.setPrescription(prescriptionId);
+            pp.setPhysic(item.getPhysic());
+            pp.setNum(item.getNum());
+            pp.setSelling(sellingPriceList.get(0).getId());
+            pp.setStatus(StatusEnum.US_ENABLED.getCode());
+            pp.setRemarks(item.getRemarks());
+            prescriptionPhysicService.addPrescriptionPhysic(pp);
+
+            int result = purchaseDetailService.updPurchaseDetailNum(
+                    pp.getId(), item.getPhysic(), item.getNum(),
+                    StatusEnum.US_ENABLED.getCode(), StatusEnum.US_OCCUPY.getCode());
+            if (result != item.getNum()) {
+                throw new BusinessException(500, "占用库存失败");
+            }
+            prescriptionPhysicService.updConstAndIncomeById(pp.getId());
+        }
     }
 
     private void validateCreateRequest(PrescriptionRequest request) {

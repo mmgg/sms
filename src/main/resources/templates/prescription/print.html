@@ -17,7 +17,7 @@
         table{width:100%;border-collapse:collapse;margin-top:10px}
         th,td{border:1px solid #333;padding:8px 6px;font-size:13px;vertical-align:middle}
         th{text-align:center;background:#f7f7f7}
-        th:nth-child(1){width:36%}th:nth-child(2){width:10%}th:nth-child(3){width:15%}th:nth-child(4){width:15%}th:nth-child(5){width:24%}
+        th:nth-child(1){width:55%}th:nth-child(2){width:15%}th:nth-child(3){width:30%}
         .right{text-align:right}.center{text-align:center}
         .diagnosis{margin-top:14px;border:1px solid #333;min-height:72px;padding:10px;font-size:14px;line-height:1.8}
         .total{text-align:right;margin-top:12px;font-size:15px;font-weight:700}
@@ -37,7 +37,6 @@
     <div class="clinic" th:text="${tenant != null ? tenant.name : '诊所名称'}">诊所名称</div>
     <div class="title">处 方 笺</div>
     <div class="meta">
-        <span>处方编号：<span th:text="${prescription.id}">1</span></span>
         <span>开方日期：<span th:text="${prescriptionTime}">2026-01-01</span></span>
     </div>
     <div class="patient-line">
@@ -50,7 +49,7 @@
     </div>
     <table>
         <thead>
-        <tr><th>药品名称</th><th>数量</th><th>单价</th><th>小计</th><th>用法用量</th></tr>
+        <tr><th>药品名称</th><th>数量</th><th>用法用量</th></tr>
         </thead>
         <tbody>
         <tr th:each="item : ${items}">
@@ -59,14 +58,11 @@
                 <span th:if="${!#strings.isEmpty(item.alias)}" th:text="| (${item.alias})|"></span>
             </td>
             <td class="center"><span th:text="${item.quantity}">1</span><span th:text="${item.unitName}"></span></td>
-            <td class="right" th:text="${#numbers.formatDecimal(item.unitPrice, 1, 2)}">0.00</td>
-            <td class="right" th:text="${#numbers.formatDecimal(item.amount, 1, 2)}">0.00</td>
             <td th:text="${item.usage}">遵医嘱</td>
         </tr>
-        <tr th:if="${#lists.isEmpty(items)}"><td colspan="5" class="center">暂无处方药品</td></tr>
+        <tr th:if="${#lists.isEmpty(items)}"><td colspan="3" class="center">暂无处方药品</td></tr>
         </tbody>
     </table>
-    <div class="total">合计金额：￥<span th:text="${#numbers.formatDecimal(totalAmount, 1, 2)}">0.00</span></div>
     <div class="diagnosis"><strong>医嘱：</strong><span th:text="${prescription.comments}">遵医嘱</span></div>
     <div class="signatures">
         <div>开方医生：<span th:text="${doctorName}">医生</span></div>

@@ -32,3 +32,42 @@
 .session-logout:hover {
     color: #fff !important;
 }
+
+/* 统一放大管理端的基础字号和操作按钮。 */
+body {
+    font-size: 15px;
+}
+
+.sidebar nav a {
+    font-size: 15px !important;
+}
+
+.page-header h2,
+.main h2 {
+    font-size: 22px !important;
+}
+
+th,
+td,
+label,
+input,
+select,
+textarea {
+    font-size: 14px !important;
+}
+
+.btn,
+button {
+    min-height: 38px;
+    font-size: 15px !important;
+}
+
+.btn-sm {
+    min-height: 32px;
+    padding: 5px 12px;
+    font-size: 13px !important;
+}
+
+.modal-header h3 {
+    font-size: 18px !important;
+}

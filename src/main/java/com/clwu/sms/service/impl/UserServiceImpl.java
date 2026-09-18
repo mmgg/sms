@@ -113,6 +113,7 @@ public class UserServiceImpl implements UserService {
         user.setRole(null);
         user.setDeleted(null);
         userMapper.updateById(user);
+        log.info("更新诊所人员: tenantId={}, userId={}", TenantContext.getTenantId(), user.getId());
     }
 
     @Override
@@ -180,6 +181,7 @@ public class UserServiceImpl implements UserService {
             existing.setPasswordHash(hash);
             existing.setUpdateTime(LocalDateTime.now());
             userAuthMapper.updateById(existing);
+            log.info("修改用户密码: userId={}", userId);
         } else {
             UserAuth auth = UserAuth.builder()
                     .userId(userId)
@@ -188,6 +190,7 @@ public class UserServiceImpl implements UserService {
                     .updateTime(LocalDateTime.now())
                     .build();
             userAuthMapper.insert(auth);
+            log.info("初始化用户密码: userId={}", userId);
         }
     }
 

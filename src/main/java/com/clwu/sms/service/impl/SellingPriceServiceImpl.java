@@ -34,6 +34,7 @@ public class SellingPriceServiceImpl implements SellingPricingService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void addSellingPrice(SellingPrice sellingPrice) {
+        sellingPrice.setStatus(StatusEnum.US_ENABLED.getCode());
         UpdateWrapper<SellingPrice> updateWrapper = new UpdateWrapper<>();
         updateWrapper.set("status", StatusEnum.US_DISABLE.getCode());
         updateWrapper.eq("physic", sellingPrice.getPhysic());

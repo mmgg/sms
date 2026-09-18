@@ -28,10 +28,24 @@
                 document.querySelectorAll("[data-current-user-role]").forEach(function (element) {
                     element.textContent = result.data.roleEnum || "";
                 });
+                applyDoctorMenuVisibility(result.data);
             })
             .catch(function () {
                 // 页面已有的业务请求会负责显示具体错误，这里不弹重复提示。
             });
+    }
+
+    function applyDoctorMenuVisibility(user) {
+        if (!user || user.type !== 10) {
+            return;
+        }
+        var forbidden = ["/physic", "/purchase", "/selling-price", "/report", "/user", "/tenants"];
+        document.querySelectorAll(".sidebar nav a, .quick-link").forEach(function (link) {
+            var href = link.getAttribute("href") || "";
+            if (forbidden.some(function (path) { return href === path || href.indexOf(path + "/") === 0; })) {
+                link.style.display = "none";
+            }
+        });
     }
 
     function loadCurrentTenant() {

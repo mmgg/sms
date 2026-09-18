@@ -12,6 +12,8 @@ import com.clwu.sms.vo.*;
 import com.clwu.sms.utils.StringUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -20,6 +22,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class ReportServiceImpl implements ReportService {
+
+    private static final Logger log = LoggerFactory.getLogger(ReportServiceImpl.class);
 
     @Autowired
     private PrescriptionPhysicMapper prescriptionPhysicMapper;
@@ -60,6 +64,7 @@ public class ReportServiceImpl implements ReportService {
 
     @Override
     public List<ProfitByDrugVo> getProfitByDrug(String startTime, String endTime) {
+        log.info("查询药品利润报表: start={}, end={}", startTime, endTime);
         List<PrescriptionPhysic> list = getFilteredPP(startTime, endTime);
         if (list.isEmpty()) return new ArrayList<>();
 
@@ -94,6 +99,7 @@ public class ReportServiceImpl implements ReportService {
 
     @Override
     public List<ProfitByPrescriptionVo> getProfitByPrescription(String startTime, String endTime) {
+        log.info("查询处方利润报表: start={}, end={}", startTime, endTime);
         List<PrescriptionPhysic> list = getFilteredPP(startTime, endTime);
         if (list.isEmpty()) return new ArrayList<>();
 
@@ -128,6 +134,7 @@ public class ReportServiceImpl implements ReportService {
 
     @Override
     public List<SalesByDrugVo> getSalesByDrug(String startTime, String endTime) {
+        log.info("查询药品销量报表: start={}, end={}", startTime, endTime);
         List<PrescriptionPhysic> list = getFilteredPP(startTime, endTime);
         if (list.isEmpty()) return new ArrayList<>();
 
@@ -155,6 +162,7 @@ public class ReportServiceImpl implements ReportService {
 
     @Override
     public List<SalesByTypeVo> getSalesByType(String startTime, String endTime) {
+        log.info("查询类型销量报表: start={}, end={}", startTime, endTime);
         List<SalesByDrugVo> drugSales = getSalesByDrug(startTime, endTime);
         Map<String, Integer> typeMap = new HashMap<>();
         for (SalesByDrugVo vo : drugSales) {
@@ -177,12 +185,14 @@ public class ReportServiceImpl implements ReportService {
 
     @Override
     public List<StockSummaryVo> getInventoryByDrug(String startTime, String endTime) {
+        log.info("查询库存报表: start={}, end={}", startTime, endTime);
         // Inventory is current state, time range not applicable
         return purchaseDetailMapper.selectStockSummary();
     }
 
     @Override
     public List<InventoryStatusVo> getInventoryStatus(String startTime, String endTime) {
+        log.info("查询库存状态报表: start={}, end={}", startTime, endTime);
         // Inventory is current state, time range not applicable
         QueryWrapper<PurchaseDetail> qw = new QueryWrapper<>();
         qw.isNotNull("status");

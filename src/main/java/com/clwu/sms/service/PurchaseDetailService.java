@@ -2,6 +2,7 @@ package com.clwu.sms.service;
 
 import com.clwu.sms.entity.PurchaseDetail;
 import com.clwu.sms.vo.StockSummaryVo;
+import com.clwu.sms.vo.PurchasePriceHistoryVo;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -28,6 +29,7 @@ public interface PurchaseDetailService {
 
     /** 获取所有药品的库存汇总 */
     List<StockSummaryVo> getStockSummary();
+    List<PurchasePriceHistoryVo> findPurchaseHistory(Long physicId);
     /** 查询某批次的进货明细 */
     List<PurchaseDetail> findByBatch(Long batchId);
 }

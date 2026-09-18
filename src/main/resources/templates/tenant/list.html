@@ -52,8 +52,8 @@
     </div>
     <div class="card">
         <table>
-            <thead><tr><th>ID</th><th>诊所编码</th><th>诊所名称</th><th>状态</th><th>创建时间</th></tr></thead>
-            <tbody id="tenantTable"><tr><td colspan="5">加载中...</td></tr></tbody>
+            <thead><tr><th>诊所编码</th><th>诊所名称</th><th>状态</th><th>创建时间</th></tr></thead>
+            <tbody id="tenantTable"><tr><td colspan="4">加载中...</td></tr></tbody>
         </table>
     </div>
 </main>
@@ -82,9 +82,9 @@
         api('/api/tenants').then(function(data){
             var rows=data.data||[];
             document.getElementById('tenantTable').innerHTML=rows.length?rows.map(function(t){
-                return '<tr><td>'+t.id+'</td><td>'+h(t.code)+'</td><td>'+h(t.name)+'</td><td>'+(t.status===STATUS_ENABLED?'正常':'停用')+'</td><td>'+h(t.createTime||'-')+'</td></tr>';
-            }).join(''):'<tr><td colspan="5">暂无数据</td></tr>';
-        }).catch(function(error){document.getElementById('tenantTable').innerHTML='<tr><td colspan="5">'+h(error.message)+'</td></tr>';});
+                return '<tr><td>'+h(t.code)+'</td><td>'+h(t.name)+'</td><td>'+(t.status===STATUS_ENABLED?'正常':'停用')+'</td><td>'+h(t.createTime||'-')+'</td></tr>';
+            }).join(''):'<tr><td colspan="4">暂无数据</td></tr>';
+        }).catch(function(error){document.getElementById('tenantTable').innerHTML='<tr><td colspan="4">'+h(error.message)+'</td></tr>';});
     }
     function openCreate(){document.getElementById('createModal').classList.add('show');}
     function closeCreate(){document.getElementById('createModal').classList.remove('show');}

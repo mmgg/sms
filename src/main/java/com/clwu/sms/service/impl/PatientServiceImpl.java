@@ -42,6 +42,8 @@ public class PatientServiceImpl implements PatientService {
             return;
         }
         patientMapper.insert(patient);
+        log.info("新增患者: patientId={}, name={}, phone={}",
+                patient.getId(), patient.getName(), patient.getPhone());
     }
 
     /**
@@ -105,6 +107,7 @@ public class PatientServiceImpl implements PatientService {
             return;
         }
         patientMapper.updateById(patient);
+        log.info("更新患者: patientId={}, name={}", patient.getId(), patient.getName());
     }
 
     /**

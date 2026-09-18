@@ -105,9 +105,9 @@ tr:hover td { background:#f5f7fa; }
 <div class="table-card">
 <table>
 <thead><tr>
-<th>ID</th><th>姓名</th><th>电话</th><th>出生日期</th><th>地址</th><th>状态</th><th>操作</th>
+<th>姓名</th><th>电话</th><th>出生日期</th><th>地址</th><th>状态</th><th>操作</th>
 </tr></thead>
-<tbody id="patientTable"><tr class="empty-row"><td colspan="7">加载中...</td></tr></tbody>
+<tbody id="patientTable"><tr class="empty-row"><td colspan="6">加载中...</td></tr></tbody>
 </table>
 </div>
 </div>
@@ -157,29 +157,29 @@ function loadPatients() {
   var name = document.getElementById('sName').value;
   var phone = document.getElementById('sPhone').value;
   var addr = document.getElementById('sAddr').value;
-  document.getElementById('patientTable').innerHTML = '<tr class="empty-row"><td colspan="7">加载中...</td></tr>';
+  document.getElementById('patientTable').innerHTML = '<tr class="empty-row"><td colspan="6">加载中...</td></tr>';
   fetch('/patient/list?name='+encodeURIComponent(name)+'&phone='+encodeURIComponent(phone)+'&addr='+encodeURIComponent(addr))
     .then(function(r){ return r.json(); })
     .then(function(data){
       patients = data || [];
       renderTable();
     })
-    .catch(function(){ document.getElementById('patientTable').innerHTML = '<tr class="empty-row"><td colspan="7">加载失败</td></tr>'; });
+    .catch(function(){ document.getElementById('patientTable').innerHTML = '<tr class="empty-row"><td colspan="6">加载失败</td></tr>'; });
 }
 
 function renderTable() {
   var tbody = document.getElementById('patientTable');
   if (!patients || patients.length === 0) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="7">暂无数据</td></tr>';
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="6">暂无数据</td></tr>';
     return;
   }
   tbody.innerHTML = patients.map(function(p){
     var st = statusText(p.status);
     var sc = statusColor(p.status);
     var bday = p.birthday ? p.birthday.substring(0,10) : '-';
-    return '<tr><td>'+p.id+'</td><td>'+htmlEscape(p.name)+'</td><td>'+htmlEscape(p.phone)+'</td><td>'+bday+'</td><td>'+htmlEscape(p.addr||'')+'</td><td style="color:'+sc+'">'+st+'</td><td class="action-btns">' +
-      '<button class="btn btn-sm btn-edit" onclick="openEditModal('+p.id+')">编辑</button>' +
+    return '<tr><td>'+htmlEscape(p.name)+'</td><td>'+htmlEscape(p.phone)+'</td><td>'+bday+'</td><td>'+htmlEscape(p.addr||'')+'</td><td style="color:'+sc+'">'+st+'</td><td class="action-btns">' +
       '<button class="btn btn-sm btn-history" onclick="showHistory('+p.id+')">就诊记录</button>' +
+      '<button class="btn btn-sm btn-edit" onclick="openEditModal('+p.id+')">编辑</button>' +
       '<button class="btn btn-sm btn-danger" onclick="delPatient('+p.id+')">删除</button></td></tr>';
   }).join('');
 }
@@ -244,8 +244,7 @@ function renderHistoryList() {
     records.forEach(function(record,index){
       html+='<div class="history-list-item" onclick="showHistoryDetail('+index+')">'+
         '<div class="history-list-main"><span>就诊时间：'+(record.visitTime?record.visitTime.substring(0,19):'-')+
-        '</span><span>开方医生：'+htmlEscape(record.doctorName||'-')+
-        '</span><span>处方号：#'+record.prescriptionId+'</span></div>'+
+        '</span><span>开方医生：'+htmlEscape(record.doctorName||'-')+'</span></div>'+
         '<div class="history-list-comment">医嘱：'+htmlEscape(record.comments||'-')+'</div></div>';
     });
   }
@@ -257,7 +256,7 @@ function showHistoryDetail(index) {
   var record=records[index];
   if(!record){return;}
   var p=currentHistoryData.patient||{};
-  document.getElementById('historyTitle').textContent='处方详情 #'+record.prescriptionId;
+  document.getElementById('historyTitle').textContent='处方详情';
   var html='<div class="history-detail-actions">'+
     '<button class="btn" style="border:1px solid #d9d9d9;background:#fff" onclick="renderHistoryList()">返回就诊记录</button>'+
     '<button class="btn btn-primary" onclick="window.open(\'/prescription/print?id='+record.prescriptionId+'\',\'_blank\')">打印处方</button></div>'+
@@ -265,13 +264,11 @@ function showHistoryDetail(index) {
     '　就诊时间：'+(record.visitTime?record.visitTime.substring(0,19):'-')+
     '<br><strong>开方医生：</strong>'+htmlEscape(record.doctorName||'-')+
     '<br><strong>医嘱：</strong>'+htmlEscape(record.comments||'-')+'</div>'+
-    '<table><thead><tr><th>药品</th><th>数量</th><th>单价</th><th>小计</th></tr></thead><tbody>';
+    '<table><thead><tr><th>药品</th><th>数量</th></tr></thead><tbody>';
   (record.items||[]).forEach(function(item){
-    html+='<tr><td>'+htmlEscape(item.physicName)+'</td><td>'+(item.quantity||0)+htmlEscape(item.unitName||'')+
-      '</td><td>￥'+(Number(item.unitPrice)||0).toFixed(2)+'</td><td>￥'+(Number(item.amount)||0).toFixed(2)+'</td></tr>';
+    html+='<tr><td>'+htmlEscape(item.physicName)+'</td><td>'+(item.quantity||0)+htmlEscape(item.unitName||'')+'</td></tr>';
   });
-  html+='</tbody></table><div style="text-align:right;margin-top:12px;font-weight:600;font-size:15px">合计：￥'+
-    (Number(record.totalAmount)||0).toFixed(2)+'</div>';
+  html+='</tbody></table>';
   document.getElementById('historyBody').innerHTML=html;
 }
 

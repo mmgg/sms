@@ -4,6 +4,7 @@ import com.clwu.sms.entity.Physic;
 import com.clwu.sms.enums.StatusEnum;
 import com.clwu.sms.service.PhysicService;
 import com.clwu.sms.vo.ResultVo;
+import com.clwu.sms.vo.PhysicScanResultVo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -32,17 +33,22 @@ public class PhysicController {
         return physicService.findPhysicByBarcode(barcode);
     }
 
+    @GetMapping("/scan")
+    public PhysicScanResultVo scan(@RequestParam String barcode) {
+        return physicService.scanBarcode(barcode);
+    }
+
     @PostMapping("/add")
-    public ResultVo<?> add(@RequestBody Physic physic) {
+    public ResultVo<Physic> add(@RequestBody Physic physic) {
         physic.setStatus(StatusEnum.US_ENABLED.getCode());
         physicService.addPhysic(physic);
-        return ResultVo.ok(null);
+        return ResultVo.ok(physic);
     }
 
     @PostMapping("/upd")
-    public ResultVo<?> upd(@RequestBody Physic physic) {
+    public ResultVo<Physic> upd(@RequestBody Physic physic) {
         physicService.updPhysic(physic);
-        return ResultVo.ok(null);
+        return ResultVo.ok(physic);
     }
 
     @PostMapping("/del")

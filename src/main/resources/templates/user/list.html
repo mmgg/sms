@@ -65,8 +65,8 @@ td{padding:12px 16px;font-size:13px;color:#333;border-bottom:1px solid #f0f0f0}t
 </div>
 </div>
 <div class="table-card"><table>
-<thead><tr><th>ID</th><th>姓名</th><th>电话</th><th>岗位</th><th>权限</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead>
-<tbody id="dataTable"><tr class="empty-row"><td colspan="8">加载中...</td></tr></tbody>
+<thead><tr><th>姓名</th><th>电话</th><th>岗位</th><th>权限</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead>
+<tbody id="dataTable"><tr class="empty-row"><td colspan="7">加载中...</td></tr></tbody>
 </table></div></div>
 </div>
 
@@ -113,22 +113,22 @@ function initPage(){
 function loadList(){
   var n=document.getElementById('sName').value.trim();
   var p=document.getElementById('sPhone').value.trim();
-  document.getElementById('dataTable').innerHTML='<tr class="empty-row"><td colspan="8">加载中...</td></tr>';
+  document.getElementById('dataTable').innerHTML='<tr class="empty-row"><td colspan="7">加载中...</td></tr>';
   ajaxFetch('/user/list').then(function(r){return r.json();}).then(function(d){
     var t=document.getElementById('dataTable');
-    if(!d||d.length===0){t.innerHTML='<tr class="empty-row"><td colspan="8">暂无数据</td></tr>';return;}
+    if(!d||d.length===0){t.innerHTML='<tr class="empty-row"><td colspan="7">暂无数据</td></tr>';return;}
     var list=d;
     if(n) list=list.filter(function(u){return u.name&&u.name.indexOf(n)!==-1;});
     if(p) list=list.filter(function(u){return u.phone&&u.phone.indexOf(p)!==-1;});
-    if(!list.length){t.innerHTML='<tr class="empty-row"><td colspan="8">暂无数据</td></tr>';return;}
+    if(!list.length){t.innerHTML='<tr class="empty-row"><td colspan="7">暂无数据</td></tr>';return;}
     t.innerHTML=list.map(function(u){
       var tn=typeMap[u.type]||'未知';
       var rn=roleMap[u.role]||'普通员工';
       var st=statusText(u.status);var sc=statusColor(u.status);
       var ct=u.createTime?u.createTime.substring(0,19):'-';
-      return '<tr><td>'+u.id+'</td><td>'+h(u.name)+'</td><td>'+h(u.phone)+'</td><td>'+tn+'</td><td>'+rn+'</td><td style="color:'+sc+'">'+st+'</td><td>'+ct+'</td><td class="action-btns"><button class="btn btn-sm btn-edit" onclick="openEdit('+u.id+')">编辑</button><button class="btn btn-sm btn-warn" onclick="resetPwd('+u.id+')">重置密码</button><button class="btn btn-sm btn-danger" onclick="delUser('+u.id+')">删除</button></td></tr>';
+      return '<tr><td>'+h(u.name)+'</td><td>'+h(u.phone)+'</td><td>'+tn+'</td><td>'+rn+'</td><td style="color:'+sc+'">'+st+'</td><td>'+ct+'</td><td class="action-btns"><button class="btn btn-sm btn-edit" onclick="openEdit('+u.id+')">编辑</button><button class="btn btn-sm btn-warn" onclick="resetPwd('+u.id+')">重置密码</button><button class="btn btn-sm btn-danger" onclick="delUser('+u.id+')">删除</button></td></tr>';
     }).join('');
-  }).catch(function(){document.getElementById('dataTable').innerHTML='<tr class="empty-row"><td colspan="8">加载失败</td></tr>';});
+  }).catch(function(){document.getElementById('dataTable').innerHTML='<tr class="empty-row"><td colspan="7">加载失败</td></tr>';});
 }
 
 function resetSearch(){document.getElementById('sName').value='';document.getElementById('sPhone').value='';loadList();}

@@ -37,6 +37,7 @@ public class PurchaseBatchServiceImpl implements PurchaseBatchService {
             return;
         }
         parchaseBatchMapper.insert(parchaseBatch);
+        log.info("新增进货批次: batchId={}, userId={}", parchaseBatch.getId(), parchaseBatch.getUser());
     }
 
     /**
@@ -67,6 +68,7 @@ public class PurchaseBatchServiceImpl implements PurchaseBatchService {
         parchaseBatch.setTenantId(null);
         parchaseBatch.setDeleted(null);
         parchaseBatchMapper.updateById(parchaseBatch);
+        log.info("更新进货批次: batchId={}, status={}", parchaseBatch.getId(), parchaseBatch.getStatus());
     }
 
     /**

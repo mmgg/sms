@@ -185,11 +185,8 @@ public class PrescriptionPhysicServiceImpl implements PrescriptionPhysicService 
         }
         // 药物详细信息
         Physic physic = physicService.findPhysicById(perscriptionPhysic.getPhysic());
-        // 卖出价格信息
-        SellingPrice sellingPrice = sellingPricingService.findSellingPriceById(perscriptionPhysic.getSelling());
         perscriptionPhysicDetailVo.setPhysic(physic);
         perscriptionPhysicDetailVo.setNum(perscriptionPhysic.getNum());
-        perscriptionPhysicDetailVo.setSellingPrice(sellingPrice);
         return perscriptionPhysicDetailVo;
     }
 
