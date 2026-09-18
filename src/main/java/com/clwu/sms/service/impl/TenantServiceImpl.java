@@ -14,6 +14,7 @@ import com.clwu.sms.service.UserService;
 import com.clwu.sms.tenant.TenantContext;
 import com.clwu.sms.utils.StringUtil;
 import com.clwu.sms.vo.TenantProvisionRequest;
+import com.clwu.sms.vo.TenantLicenseUpdateRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,12 +22,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Service
 public class TenantServiceImpl implements TenantService {
 
     private static final Logger log = LoggerFactory.getLogger(TenantServiceImpl.class);
+    private static final int DEFAULT_WARNING_DAYS = 30;
+    private static final DateTimeFormatter LICENSE_TIME_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @Autowired
     private TenantMapper tenantMapper;
@@ -69,6 +75,12 @@ public class TenantServiceImpl implements TenantService {
                 .code(code)
                 .name(request.getName().trim())
                 .status(StatusEnum.US_ENABLED.getCode())
+                .licenseStartTime(request.getLicenseStartTime() == null
+                        ? LocalDateTime.now() : request.getLicenseStartTime())
+                .licenseEndTime(request.getLicenseEndTime() == null
+                        ? LocalDateTime.now().plusYears(1) : request.getLicenseEndTime())
+                .licenseWarningDays(request.getLicenseWarningDays() == null
+                        ? DEFAULT_WARNING_DAYS : request.getLicenseWarningDays())
                 .createTime(LocalDateTime.now())
                 .updateTime(LocalDateTime.now())
                 .build();
@@ -95,5 +107,59 @@ public class TenantServiceImpl implements TenantService {
         } finally {
             TenantContext.setTenantId(previousTenantId);
         }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Tenant updateLicense(TenantLicenseUpdateRequest request) {
+        if (request.getLicenseStartTime() == null || request.getLicenseEndTime() == null) {
+            throw new BusinessException(400, "授权开始和结束时间不能为空");
+        }
+        if (!request.getLicenseStartTime().isBefore(request.getLicenseEndTime())) {
+            throw new BusinessException(400, "授权开始时间必须早于结束时间");
+        }
+        Tenant tenant = tenantMapper.selectById(request.getTenantId());
+        if (tenant == null) {
+            throw new BusinessException(404, "租户不存在");
+        }
+        tenant.setLicenseStartTime(request.getLicenseStartTime());
+        tenant.setLicenseEndTime(request.getLicenseEndTime());
+        tenant.setLicenseWarningDays(request.getLicenseWarningDays() == null
+                ? DEFAULT_WARNING_DAYS : request.getLicenseWarningDays());
+        tenant.setUpdateTime(LocalDateTime.now());
+        tenantMapper.updateById(tenant);
+        log.info("更新租户授权期: tenantId={}, start={}, end={}, warningDays={}",
+                tenant.getId(), tenant.getLicenseStartTime(), tenant.getLicenseEndTime(),
+                tenant.getLicenseWarningDays());
+        return tenant;
+    }
+
+    @Override
+    public void validateLicense(Tenant tenant) {
+        if (tenant == null) {
+            throw new BusinessException(403, "诊所不存在或已停用");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (tenant.getLicenseStartTime() != null && now.isBefore(tenant.getLicenseStartTime())) {
+            throw new BusinessException(403, "授权期尚未开始，请及时购买授权");
+        }
+        if (tenant.getLicenseEndTime() != null && now.isAfter(tenant.getLicenseEndTime())) {
+            throw new BusinessException(403, "已过授权期，请及时购买授权");
+        }
+    }
+
+    @Override
+    public String buildLicenseWarning(Tenant tenant, boolean administrator) {
+        if (!administrator || tenant == null || tenant.getLicenseEndTime() == null) {
+            return null;
+        }
+        long remainingDays = ChronoUnit.DAYS.between(LocalDateTime.now(), tenant.getLicenseEndTime());
+        int warningDays = tenant.getLicenseWarningDays() == null
+                ? DEFAULT_WARNING_DAYS : tenant.getLicenseWarningDays();
+        if (remainingDays <= warningDays) {
+            return "授权期将于" + tenant.getLicenseEndTime().format(LICENSE_TIME_FORMATTER)
+                    + "到期，请及时购买授权";
+        }
+        return null;
     }
 }

@@ -52,8 +52,8 @@
     </div>
     <div class="card">
         <table>
-            <thead><tr><th>诊所编码</th><th>诊所名称</th><th>状态</th><th>创建时间</th></tr></thead>
-            <tbody id="tenantTable"><tr><td colspan="4">加载中...</td></tr></tbody>
+            <thead><tr><th>诊所编码</th><th>诊所名称</th><th>状态</th><th>授权开始</th><th>授权结束</th><th>提前提醒</th><th>操作</th></tr></thead>
+            <tbody id="tenantTable"><tr><td colspan="7">加载中...</td></tr></tbody>
         </table>
     </div>
 </main>
@@ -66,9 +66,26 @@
         <div class="form-group"><label>管理员姓名 *</label><input id="fAdminName" placeholder="请输入管理员姓名"></div>
         <div class="form-group"><label>管理员手机号 *</label><input id="fAdminPhone" placeholder="请输入手机号"></div>
         <div class="form-group"><label>初始密码</label><input id="fAdminPassword" type="password" placeholder="默认 123456"></div>
+        <div class="form-group"><label>授权开始时间 *</label><input id="fLicenseStart" type="datetime-local"></div>
+        <div class="form-group"><label>授权结束时间 *</label><input id="fLicenseEnd" type="datetime-local"></div>
+        <div class="form-group"><label>到期前提醒天数</label><input id="fWarningDays" type="number" min="0" value="30"></div>
         <div class="modal-footer">
             <button class="btn btn-cancel" onclick="closeCreate()">取消</button>
             <button class="btn btn-primary" onclick="createTenant()">创建</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal" id="licenseModal">
+    <div class="modal-body">
+        <div class="modal-header"><h3>编辑授权期</h3><button class="close" onclick="closeLicense()">×</button></div>
+        <input type="hidden" id="licenseTenantId">
+        <div class="form-group"><label>授权开始时间 *</label><input id="editLicenseStart" type="datetime-local"></div>
+        <div class="form-group"><label>授权结束时间 *</label><input id="editLicenseEnd" type="datetime-local"></div>
+        <div class="form-group"><label>到期前提醒天数</label><input id="editWarningDays" type="number" min="0" value="30"></div>
+        <div class="modal-footer">
+            <button class="btn btn-cancel" onclick="closeLicense()">取消</button>
+            <button class="btn btn-primary" onclick="saveLicense()">保存</button>
         </div>
     </div>
 </div>
@@ -82,19 +99,24 @@
         api('/api/tenants').then(function(data){
             var rows=data.data||[];
             document.getElementById('tenantTable').innerHTML=rows.length?rows.map(function(t){
-                return '<tr><td>'+h(t.code)+'</td><td>'+h(t.name)+'</td><td>'+(t.status===STATUS_ENABLED?'正常':'停用')+'</td><td>'+h(t.createTime||'-')+'</td></tr>';
-            }).join(''):'<tr><td colspan="4">暂无数据</td></tr>';
-        }).catch(function(error){document.getElementById('tenantTable').innerHTML='<tr><td colspan="4">'+h(error.message)+'</td></tr>';});
+                return '<tr><td>'+h(t.code)+'</td><td>'+h(t.name)+'</td><td>'+(t.status===STATUS_ENABLED?'正常':'停用')+'</td><td>'+h(t.licenseStartTime||'-')+'</td><td>'+h(t.licenseEndTime||'-')+'</td><td>'+(t.licenseWarningDays==null?30:t.licenseWarningDays)+'天</td><td><button class="btn" onclick="openLicense('+t.id+',\''+h(t.licenseStartTime||'')+'\',\''+h(t.licenseEndTime||'')+'\','+(t.licenseWarningDays==null?30:t.licenseWarningDays)+')">编辑授权</button></td></tr>';
+            }).join(''):'<tr><td colspan="7">暂无数据</td></tr>';
+        }).catch(function(error){document.getElementById('tenantTable').innerHTML='<tr><td colspan="7">'+h(error.message)+'</td></tr>';});
     }
     function openCreate(){document.getElementById('createModal').classList.add('show');}
     function closeCreate(){document.getElementById('createModal').classList.remove('show');}
     function createTenant(){
+        var now=new Date();
+        var end=new Date(now.getTime()+365*24*60*60*1000);
         var body={
             code:document.getElementById('fCode').value.trim(),
             name:document.getElementById('fName').value.trim(),
             adminName:document.getElementById('fAdminName').value.trim(),
             adminPhone:document.getElementById('fAdminPhone').value.trim(),
-            adminPassword:document.getElementById('fAdminPassword').value.trim()
+            adminPassword:document.getElementById('fAdminPassword').value.trim(),
+            licenseStartTime:document.getElementById('fLicenseStart').value||formatLocal(now),
+            licenseEndTime:document.getElementById('fLicenseEnd').value||formatLocal(end),
+            licenseWarningDays:parseInt(document.getElementById('fWarningDays').value||'30')
         };
         if(!body.code||!body.name||!body.adminName||!body.adminPhone){toast('请填写必填项','error');return;}
         api('/api/tenants',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
@@ -105,6 +127,29 @@
                 loadTenants();
             })
             .catch(function(error){toast(error.message||'创建失败','error');});
+    }
+    function formatLocal(date){
+        var pad=function(n){return n<10?'0'+n:''+n;};
+        return date.getFullYear()+'-'+pad(date.getMonth()+1)+'-'+pad(date.getDate())+'T'+pad(date.getHours())+':'+pad(date.getMinutes());
+    }
+    function openLicense(id,start,end,days){
+        document.getElementById('licenseTenantId').value=id;
+        document.getElementById('editLicenseStart').value=(start||'').replace(' ','T').substring(0,16);
+        document.getElementById('editLicenseEnd').value=(end||'').replace(' ','T').substring(0,16);
+        document.getElementById('editWarningDays').value=days;
+        document.getElementById('licenseModal').classList.add('show');
+    }
+    function closeLicense(){document.getElementById('licenseModal').classList.remove('show');}
+    function saveLicense(){
+        var body={
+            tenantId:parseInt(document.getElementById('licenseTenantId').value),
+            licenseStartTime:document.getElementById('editLicenseStart').value,
+            licenseEndTime:document.getElementById('editLicenseEnd').value,
+            licenseWarningDays:parseInt(document.getElementById('editWarningDays').value||'30')
+        };
+        api('/api/tenants/license',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+            .then(function(resp){if(resp.code!==200){toast(resp.msg||'保存失败','error');return;}toast('授权期已更新');closeLicense();loadTenants();})
+            .catch(function(error){toast(error.message||'保存失败','error');});
     }
     function logout(){fetch('/api/logout',{method:'POST'}).then(function(){location.href='/login';});}
     loadTenants();

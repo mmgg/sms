@@ -4,6 +4,7 @@ import lombok.Data;
 
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.Pattern;
+import java.time.LocalDateTime;
 
 /**
  * 创建诊所及首位管理员所需参数。
@@ -26,4 +27,10 @@ public class TenantProvisionRequest {
     private String adminPhone;
 
     private String adminPassword;
+
+    private LocalDateTime licenseStartTime;
+
+    private LocalDateTime licenseEndTime;
+
+    private Integer licenseWarningDays;
 }

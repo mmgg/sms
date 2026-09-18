@@ -4,6 +4,7 @@ import com.clwu.sms.entity.User;
 import com.clwu.sms.config.SessionConstants;
 import com.clwu.sms.service.UserService;
 import com.clwu.sms.vo.ResultVo;
+import com.clwu.sms.vo.LoginResultVo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,16 +43,17 @@ public class LoginController {
                              HttpSession session) {
         log.info("用户登录尝试: tenantCode={}, phone={}", tenantCode, phone);
 
-        User user = userService.login(tenantCode, phone, password);
-        if (user == null) {
+        LoginResultVo loginResult = userService.login(tenantCode, phone, password);
+        if (loginResult == null || loginResult.getUser() == null) {
             log.warn("登录失败: tenantCode={}, phone={}", tenantCode, phone);
             return ResultVo.error(401, "诊所编码、手机号或密码错误");
         }
+        User user = loginResult.getUser();
 
         session.setAttribute(SessionConstants.CURRENT_USER, user);
         log.info("登录成功: tenantId={}, user={}, name={}",
                 user.getTenantId(), user.getId(), user.getName());
-        return ResultVo.ok(user);
+        return ResultVo.ok(loginResult);
     }
 
     /**

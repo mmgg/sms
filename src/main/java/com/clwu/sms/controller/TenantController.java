@@ -8,6 +8,7 @@ import com.clwu.sms.exception.BusinessException;
 import com.clwu.sms.service.TenantService;
 import com.clwu.sms.vo.ResultVo;
 import com.clwu.sms.vo.TenantProvisionRequest;
+import com.clwu.sms.vo.TenantLicenseUpdateRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,6 +54,13 @@ public class TenantController {
         Tenant tenant = tenantService.createTenantWithAdmin(request);
         log.info("平台管理员创建诊所: tenantId={}, code={}", tenant.getId(), tenant.getCode());
         return ResultVo.ok(tenant);
+    }
+
+    @PostMapping("/license")
+    public ResultVo<Tenant> updateLicense(@Valid @RequestBody TenantLicenseUpdateRequest request,
+                                          HttpSession session) {
+        requirePlatformAdmin(session);
+        return ResultVo.ok(tenantService.updateLicense(request));
     }
 
     private void requirePlatformAdmin(HttpSession session) {

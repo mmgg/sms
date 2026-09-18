@@ -28,8 +28,13 @@ public class Tenant {
 
     private Integer status;
 
+    private LocalDateTime licenseStartTime;
+
+    private LocalDateTime licenseEndTime;
+
+    private Integer licenseWarningDays;
+
     private LocalDateTime createTime;
 
     private LocalDateTime updateTime;
 }
-

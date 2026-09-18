@@ -17,6 +17,7 @@ import com.clwu.sms.mapper.UserMapper;
 import com.clwu.sms.service.UserService;
 import com.clwu.sms.tenant.TenantContext;
 import com.clwu.sms.utils.StringUtil;
+import com.clwu.sms.vo.LoginResultVo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +28,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Service
@@ -34,6 +37,8 @@ public class UserServiceImpl implements UserService {
 
     private static final Logger log = LoggerFactory.getLogger(UserServiceImpl.class);
     private static final String DEFAULT_PASSWORD = "123456";
+    private static final DateTimeFormatter LICENSE_TIME_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @Autowired
     private UserMapper userMapper;
@@ -117,7 +122,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public User login(String tenantCode, String phone, String password) {
+    public LoginResultVo login(String tenantCode, String phone, String password) {
         String normalizedCode = StringUtil.isBlank(tenantCode)
                 ? TenantConstants.DEFAULT_TENANT_CODE
                 : tenantCode.trim().toLowerCase();
@@ -129,14 +134,46 @@ public class UserServiceImpl implements UserService {
             log.warn("登录失败，诊所编码不存在或已停用: tenantCode={}", normalizedCode);
             return null;
         }
+        validateTenantLicense(tenant);
 
         Long previousTenantId = TenantContext.getTenantId();
         try {
             TenantContext.setTenantId(tenant.getId());
-            return loginInTenant(phone, password, tenant);
+            User user = loginInTenant(phone, password, tenant);
+            if (user == null) {
+                return null;
+            }
+            return LoginResultVo.builder()
+                    .user(user)
+                    .warningMessage(buildLicenseWarning(tenant, user))
+                    .build();
         } finally {
             TenantContext.setTenantId(previousTenantId);
         }
+    }
+
+    private void validateTenantLicense(Tenant tenant) {
+        LocalDateTime now = LocalDateTime.now();
+        if (tenant.getLicenseStartTime() != null && now.isBefore(tenant.getLicenseStartTime())) {
+            throw new com.clwu.sms.exception.BusinessException(403, "授权期尚未开始，请及时购买授权");
+        }
+        if (tenant.getLicenseEndTime() != null && now.isAfter(tenant.getLicenseEndTime())) {
+            throw new com.clwu.sms.exception.BusinessException(403, "已过授权期，请及时购买授权");
+        }
+    }
+
+    private String buildLicenseWarning(Tenant tenant, User user) {
+        UserRoleEnum role = user.getRoleEnum();
+        if (role == null || !role.canManageTenantUsers() || tenant.getLicenseEndTime() == null) {
+            return null;
+        }
+        long remainingDays = ChronoUnit.DAYS.between(LocalDateTime.now(), tenant.getLicenseEndTime());
+        int warningDays = tenant.getLicenseWarningDays() == null ? 30 : tenant.getLicenseWarningDays();
+        if (remainingDays <= warningDays) {
+            return "授权期将于" + tenant.getLicenseEndTime().format(LICENSE_TIME_FORMATTER)
+                    + "到期，请及时购买授权";
+        }
+        return null;
     }
 
     private User loginInTenant(String phone, String password, Tenant tenant) {

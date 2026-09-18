@@ -75,6 +75,7 @@
             display: none;
         }
         .error-msg.show { display: block; }
+        .error-msg.warning { color: #fa8c16; }
     </style>
 </head>
 <body>
@@ -115,10 +116,17 @@
             xhr.onload = function() {
                 var resp = JSON.parse(xhr.responseText);
                 if (resp.code === 200) {
-                    window.location.href = '/dashboard';
+                    var warning = resp.data && resp.data.warningMessage;
+                    if (warning) {
+                        errorEl.textContent = warning;
+                        errorEl.className = 'error-msg warning show';
+                        setTimeout(function(){ window.location.href = '/dashboard'; }, 3500);
+                    } else {
+                        window.location.href = '/dashboard';
+                    }
                 } else {
                     errorEl.textContent = resp.msg || '登录失败';
-                    errorEl.classList.add('show');
+                    errorEl.className = 'error-msg show';
                 }
             };
             xhr.onerror = function() {
@@ -132,6 +140,12 @@
         document.getElementById('password').addEventListener('keydown', function(e) {
             if (e.key === 'Enter') doLogin();
         });
+        var licenseMessage = new URLSearchParams(window.location.search).get('licenseMessage');
+        if (licenseMessage) {
+            var licenseErrorEl = document.getElementById('errorMsg');
+            licenseErrorEl.textContent = licenseMessage;
+            licenseErrorEl.className = 'error-msg warning show';
+        }
     </script>
 </body>
 </html>
