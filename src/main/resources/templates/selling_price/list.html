@@ -42,6 +42,7 @@ td{padding:12px 16px;font-size:13px;color:#333;border-bottom:1px solid #f0f0f0}t
 <a href="/dashboard">📊 仪表盘</a><a href="/patients">👤 患者管理</a><a href="/physic">💊 药品/耗材</a>
 <a href="/purchase">📦 进货管理</a><a href="/prescription">📋 处方管理</a><a href="/inventory">🏪 库存查询</a>
 <a href="/selling-price" class="active">💰 售价管理</a><a href="/report">📈 报表统计</a><a href="/user">👥 用户管理</a>
+<a href="/audit" th:if="${session.currentUser != null and session.currentUser.auditViewer}">🧾 审计日志</a>
 </nav>
 <div class="session-user-box">
 <span class="session-user-name">当前用户：<span data-current-user-name>加载中...</span></span>
@@ -119,7 +120,17 @@ function searchDrugs(){
   fetch('/physic/list?name='+encodeURIComponent(q)).then(r=>r.json()).then(function(d){
     var html='';
     if(!d||!d.length){html='<div class="item" style="color:#999;cursor:default">未找到</div>';}
-    else{d.forEach(function(p){html+='<div class="item" onclick="selectDrug('+p.id+',\''+h(p.name)+'\')">'+h(p.name)+(p.alias?' ('+h(p.alias)+')':'')+'</div>';});}
+    else{
+      var editingId=parseInt(document.getElementById('editId').value||'0');
+      d.forEach(function(p){
+        var priced=priceData.find(function(item){return item.physic===p.id&&item.status===1&&item.id!==editingId;});
+        if(priced){
+          html+='<div class="item" style="color:#999;cursor:not-allowed">'+h(p.name)+(p.alias?' ('+h(p.alias)+')':'')+' - 已设置售价，请编辑</div>';
+        }else{
+          html+='<div class="item" onclick="selectDrug('+p.id+',\''+h(p.name)+'\')">'+h(p.name)+(p.alias?' ('+h(p.alias)+')':'')+'</div>';
+        }
+      });
+    }
     list.innerHTML=html;list.style.display='block';
   }).catch(function(){});
 }
@@ -167,13 +178,22 @@ function save(){
   var url='/sp/add';
   if(id){body.id=parseInt(id);body.status=parseInt(document.getElementById('fStatus').value);url='/sp/upd';}
   fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
-  .then(function(r){return r.json();}).then(function(r){sToast(id?'更新成功':'添加成功','success');closeModal();loadList();})
+  .then(function(r){return r.json();}).then(function(r){
+    if(r.code===200){
+      sToast(id?'更新成功':'添加成功','success');closeModal();loadList();
+    }else{
+      sToast(r.msg||'操作失败','error');
+    }
+  })
   .catch(function(){sToast('操作失败','error');});
 }
 
 function delPrice(id){
   if(!confirm('确定删除该售价？'))return;
-  fetch('/sp/del?id='+id,{method:'POST'}).then(function(r){return r.json();}).then(function(){sToast('删除成功','success');loadList();}).catch(function(){sToast('删除失败','error');});
+  fetch('/sp/del?id='+id,{method:'POST'}).then(function(r){return r.json();}).then(function(r){
+    if(r.code===200){sToast('删除成功','success');loadList();}
+    else{sToast(r.msg||'删除失败','error');}
+  }).catch(function(){sToast('删除失败','error');});
 }
 
 loadList();

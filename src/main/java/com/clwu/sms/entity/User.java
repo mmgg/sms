@@ -1,6 +1,7 @@
 package com.clwu.sms.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
@@ -24,16 +25,19 @@ public class User extends BaseTenantEntity {
 
     private Integer type;
 
+    @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;
 
+    @TableField(fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updateTime;
 
+    @TableField(fill = FieldFill.INSERT_UPDATE)
     private Long updateUser;
 
     private Integer status;
 
     @NotBlank(message = "手机号不能为空")
-    @Pattern(regexp = "^1[3-9]\\d{9}$", message = "手机号格式不正确")
+    @Pattern(regexp = "^1[3-9]\\d{9}$", message = "请输入正确的手机号码")
     private String phone;
 
     /**
@@ -47,5 +51,13 @@ public class User extends BaseTenantEntity {
 
     public UserRoleEnum getRoleEnum() {
         return UserRoleEnum.findByCode(role);
+    }
+
+    /**
+     * 供页面模板判断当前用户是否显示审计日志菜单。
+     */
+    public boolean isAuditViewer() {
+        UserRoleEnum roleEnum = getRoleEnum();
+        return roleEnum != null && roleEnum.canViewAuditLog();
     }
 }

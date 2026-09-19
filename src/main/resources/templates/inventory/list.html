@@ -37,6 +37,7 @@ td{padding:12px 16px;font-size:13px;color:#333;border-bottom:1px solid #f0f0f0}t
 <a href="/dashboard">📊 仪表盘</a><a href="/patients">👤 患者管理</a><a href="/physic">💊 药品/耗材</a>
 <a href="/purchase">📦 进货管理</a><a href="/prescription">📋 处方管理</a>
 <a href="/inventory" class="active">🏪 库存查询</a><a href="/selling-price">💰 售价管理</a><a href="/report">📈 报表统计</a><a href="/user">👥 用户管理</a>
+<a href="/audit" th:if="${session.currentUser != null and session.currentUser.auditViewer}">🧾 审计日志</a>
 </nav>
 <div class="session-user-box">
 <span class="session-user-name">当前用户：<span data-current-user-name>加载中...</span></span>

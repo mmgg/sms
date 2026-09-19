@@ -48,7 +48,6 @@ public class PhysicServiceImpl implements PhysicService {
             normalizePhysic(physic);
             ensureBarcodeUnique(physic);
             physic.setStatus(StatusEnum.US_ENABLED.getCode());
-            physic.setUpdateUser(1L);
             if (StringUtil.isBlank(physic.getSourceApi())) {
                 physic.setSourceApi("MANUAL");
                 physic.setDataVerified(1);
@@ -216,10 +215,6 @@ public class PhysicServiceImpl implements PhysicService {
     }
 
     private void saveSellingPrice(Physic physic) {
-        SellingPrice price = new SellingPrice();
-        price.setPhysic(physic.getId());
-        price.setPrice(physic.getSellingPrice());
-        price.setStatus(StatusEnum.US_ENABLED.getCode());
-        sellingPricingService.addSellingPrice(price);
+        sellingPricingService.saveOrUpdateForPhysic(physic.getId(), physic.getSellingPrice());
     }
 }

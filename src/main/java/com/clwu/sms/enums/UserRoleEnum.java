@@ -35,6 +35,13 @@ public enum UserRoleEnum {
         return this == PLATFORM_ADMIN || this == TENANT_ADMIN;
     }
 
+    /**
+     * 是否允许查看审计日志。
+     */
+    public boolean canViewAuditLog() {
+        return this == PLATFORM_ADMIN || this == TENANT_ADMIN;
+    }
+
     public static UserRoleEnum findByCode(Integer code) {
         if (code == null) {
             return null;

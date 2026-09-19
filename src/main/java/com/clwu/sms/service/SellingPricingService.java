@@ -3,6 +3,7 @@ package com.clwu.sms.service;
 import com.clwu.sms.entity.Physic;
 import com.clwu.sms.entity.SellingPrice;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -28,6 +29,15 @@ public interface SellingPricingService {
      * @param sellingPrice
      */
     public void updSellingPrice(SellingPrice sellingPrice);
+
+    /**
+     * 在药品新增或编辑流程中保存当前售价。
+     * 同一药品已存在售价时复用原记录，不新增历史售价记录。
+     *
+     * @param physicId 药品或耗材ID
+     * @param price 当前售价
+     */
+    public void saveOrUpdateForPhysic(Long physicId, BigDecimal price);
 
     /**
      * 基于sellingPriceID查询

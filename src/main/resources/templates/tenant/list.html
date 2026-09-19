@@ -38,6 +38,7 @@
     <nav>
         <a href="/dashboard">仪表盘</a>
         <a href="/tenants" class="active">诊所租户</a>
+        <a href="/audit" th:if="${session.currentUser != null and session.currentUser.auditViewer}">审计日志</a>
     </nav>
     <div class="session-user-box">
         <span class="session-user-name">当前用户：<span data-current-user-name>加载中...</span></span>
@@ -119,6 +120,7 @@
             licenseWarningDays:parseInt(document.getElementById('fWarningDays').value||'30')
         };
         if(!body.code||!body.name||!body.adminName||!body.adminPhone){toast('请填写必填项','error');return;}
+        if(!/^1[3-9]\d{9}$/.test(body.adminPhone)){toast('请输入正确的管理员手机号码','error');return;}
         api('/api/tenants',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
             .then(function(resp){
                 if(resp.code!==200){toast(resp.msg||'创建失败','error');return;}

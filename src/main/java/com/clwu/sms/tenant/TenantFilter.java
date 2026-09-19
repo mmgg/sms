@@ -25,6 +25,7 @@ public class TenantFilter implements Filter {
             chain.doFilter(request, response);
         } finally {
             TenantContext.clear();
+            CurrentUserContext.clear();
         }
     }
 
@@ -35,7 +36,9 @@ public class TenantFilter implements Filter {
     private Long resolveTenantId(HttpServletRequest request) {
         HttpSession session = request.getSession(false);
         if (session != null && session.getAttribute(SessionConstants.CURRENT_USER) instanceof User) {
-            return ((User) session.getAttribute(SessionConstants.CURRENT_USER)).getTenantId();
+            User user = (User) session.getAttribute(SessionConstants.CURRENT_USER);
+            CurrentUserContext.setUser(user);
+            return user.getTenantId();
         }
         String tenantHeader = request.getHeader(TenantConstants.TENANT_HEADER);
         if (tenantHeader == null || tenantHeader.trim().isEmpty()) {

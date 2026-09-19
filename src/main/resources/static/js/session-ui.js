@@ -29,6 +29,7 @@
                     element.textContent = result.data.roleEnum || "";
                 });
                 applyDoctorMenuVisibility(result.data);
+                applyAdminMenuVisibility(result.data);
             })
             .catch(function () {
                 // 页面已有的业务请求会负责显示具体错误，这里不弹重复提示。
@@ -46,6 +47,27 @@
                 link.style.display = "none";
             }
         });
+    }
+
+    function applyAdminMenuVisibility(user) {
+        var nav = document.querySelector(".sidebar nav");
+        if (!nav) {
+            return;
+        }
+        var existingAuditLink = nav.querySelector('a[href="/audit"]');
+        var role = user && Number(user.role);
+        if (role === 1 || role === 10) {
+            if (!existingAuditLink) {
+                var link = document.createElement("a");
+                link.href = "/audit";
+                link.textContent = "🧾 审计日志";
+                nav.appendChild(link);
+            }
+            return;
+        }
+        if (existingAuditLink) {
+            existingAuditLink.style.display = "none";
+        }
     }
 
     function loadCurrentTenant() {

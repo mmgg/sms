@@ -51,7 +51,6 @@ public class PatientController {
 
     @PostMapping("/add")
     public ResultVo<?> addPatient(@RequestBody Patient patient) {
-        patient.setCreateUser(1L);
         patient.setStatus(StatusEnum.US_ENABLED.getCode());
         patientService.addPatient(patient);
         return ResultVo.ok(null);

@@ -23,7 +23,7 @@ public class TenantProvisionRequest {
     private String adminName;
 
     @NotBlank(message = "管理员手机号不能为空")
-    @Pattern(regexp = "^1[3-9]\\d{9}$", message = "管理员手机号格式不正确")
+    @Pattern(regexp = "^1[3-9]\\d{9}$", message = "请输入正确的管理员手机号码")
     private String adminPhone;
 
     private String adminPassword;

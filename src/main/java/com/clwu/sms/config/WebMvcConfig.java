@@ -28,6 +28,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 );
         registry.addInterceptor(new AdminInterceptor())
                 .addPathPatterns(
+                        "/audit",
+                        "/api/audit/**",
                         "/user/list",
                         "/user/add",
                         "/user/del",

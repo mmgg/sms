@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>审计日志</title>
+    <link rel="stylesheet" href="/css/session-ui.css">
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f0f2f5;display:flex;min-height:100vh}
+        .sidebar{width:220px;background:#001529;color:#fff;position:fixed;inset:0 auto 0 0;display:flex;flex-direction:column}
+        .logo{padding:20px;text-align:center;font-size:18px;font-weight:600;border-bottom:1px solid rgba(255,255,255,.1)}
+        .logo span{color:#1890ff}.sidebar nav{flex:1;padding:12px 0}
+        .sidebar nav a{display:block;padding:14px 24px;color:rgba(255,255,255,.65);text-decoration:none}
+        .sidebar nav a.active,.sidebar nav a:hover{color:#fff;background:rgba(255,255,255,.08)}
+        .main{margin-left:220px;flex:1;padding:24px}.page-header{margin-bottom:20px}
+        .search-bar{background:#fff;padding:16px;border-radius:8px;margin-bottom:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+        .search-bar label{display:block;margin-bottom:5px;color:#666}.search-bar input,.search-bar select{padding:8px 12px;border:1px solid #d9d9d9;border-radius:6px;background:#fff}
+        .btn{padding:8px 18px;border:0;border-radius:6px;background:#1890ff;color:#fff;cursor:pointer}
+        .card{background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.05);overflow-x:auto}
+        table{width:100%;min-width:1100px;border-collapse:collapse;table-layout:fixed}
+        th,td{padding:12px 14px;text-align:left;border-bottom:1px solid #f0f0f0;vertical-align:middle}
+        th{background:#fafafa;color:#666;font-weight:600;white-space:nowrap}
+        tr:hover td{background:#f5f7fa}
+        .col-time{width:178px}.col-operator{width:132px}.col-operation{width:152px}.col-params{width:auto}.col-result{width:168px}
+        .time-cell,.operator-cell{white-space:nowrap}
+        .operation-cell,.result-cell{word-break:break-word}
+        .cell-ellipsis{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+        .success{color:#52c41a;font-weight:600}.failed{color:#ff4d4f;font-weight:600}
+        .params{min-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#666}
+        .toast{position:fixed;top:20px;right:20px;padding:12px 22px;border-radius:6px;color:#fff;display:none;z-index:2000}
+        .toast.error{background:#ff4d4f}
+    </style>
+</head>
+<body>
+<aside class="sidebar">
+    <div class="logo">诊所<span>管理</span></div>
+    <nav>
+        <a href="/dashboard">📊 仪表盘</a>
+        <a href="/patients">👤 患者管理</a><a href="/physic">💊 药品/耗材</a>
+        <a href="/purchase">📦 进货管理</a><a href="/prescription">📋 处方管理</a>
+        <a href="/inventory">🏪 库存查询</a><a href="/selling-price">💰 售价管理</a>
+        <a href="/report">📈 报表统计</a><a href="/user">👥 用户管理</a>
+        <a href="/audit" class="active" th:if="${session.currentUser != null and session.currentUser.auditViewer}">🧾 审计日志</a>
+    </nav>
+    <div class="session-user-box">
+        <span class="session-user-name">当前用户：<span data-current-user-name>加载中...</span></span>
+        <span class="session-user-role" data-current-user-role></span>
+        <a href="#" class="session-logout" data-logout>退出登录</a>
+    </div>
+</aside>
+<main class="main">
+    <div class="page-header"><h2>🧾 审计日志</h2></div>
+    <div class="search-bar">
+        <div><label>开始时间</label><input id="startTime" type="datetime-local"></div>
+        <div><label>结束时间</label><input id="endTime" type="datetime-local"></div>
+        <div><label>操作人员</label><select id="operatorId"><option value="">全部</option></select></div>
+        <button class="btn" onclick="loadLogs()">查询</button>
+        <button class="btn" style="background:#fff;color:#555;border:1px solid #d9d9d9" onclick="resetSearch()">最近72小时</button>
+    </div>
+    <div class="card">
+        <table>
+            <colgroup>
+                <col class="col-time">
+                <col class="col-operator">
+                <col class="col-operation">
+                <col class="col-params">
+                <col class="col-result">
+            </colgroup>
+            <thead><tr><th>时间</th><th>操作人员</th><th>操作</th><th>参数</th><th>结果</th></tr></thead>
+            <tbody id="logTable"><tr><td colspan="5" style="text-align:center;color:#999;padding:40px">加载中...</td></tr></tbody>
+        </table>
+    </div>
+</main>
+<div class="toast" id="toast"></div>
+<script>
+    function pad(n){return n<10?'0'+n:''+n;}
+    function toLocalValue(date){return date.getFullYear()+'-'+pad(date.getMonth()+1)+'-'+pad(date.getDate())+'T'+pad(date.getHours())+':'+pad(date.getMinutes());}
+    function h(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+    function toast(message){var el=document.getElementById('toast');el.textContent=message;el.className='toast error';el.style.display='block';setTimeout(function(){el.style.display='none';},2500);}
+    function api(url){return fetch(url,{headers:{'X-Requested-With':'XMLHttpRequest'}}).then(function(r){if(r.status===401){location.href='/login';throw new Error('未登录');}if(r.status===403){throw new Error('无权限');}return r.json();});}
+    function resetSearch(){
+        var end=new Date();
+        var start=new Date(end.getTime()-72*60*60*1000);
+        document.getElementById('startTime').value=toLocalValue(start);
+        document.getElementById('endTime').value=toLocalValue(end);
+        loadLogs();
+    }
+    function loadOperators(){
+        api('/api/audit/operators').then(function(list){
+            var select=document.getElementById('operatorId');
+            (list||[]).forEach(function(user){
+                var option=document.createElement('option');
+                option.value=user.id;
+                option.textContent=user.name||user.phone||user.id;
+                select.appendChild(option);
+            });
+        }).catch(function(){});
+    }
+    function loadLogs(){
+        var params=[];
+        var start=document.getElementById('startTime').value;
+        var end=document.getElementById('endTime').value;
+        var operator=document.getElementById('operatorId').value;
+        if(start)params.push('startTime='+encodeURIComponent(start));
+        if(end)params.push('endTime='+encodeURIComponent(end));
+        if(operator)params.push('operatorId='+encodeURIComponent(operator));
+        document.getElementById('logTable').innerHTML='<tr><td colspan="5" style="text-align:center;color:#999;padding:40px">加载中...</td></tr>';
+        api('/api/audit/list'+(params.length?'?'+params.join('&'):'')).then(function(list){
+            var rows=list||[];
+            document.getElementById('logTable').innerHTML=rows.length?rows.map(function(item){
+                return '<tr><td class="time-cell">'+h(item.createTime)+'</td>'+
+                    '<td class="operator-cell" title="'+h(item.operatorName||'未知')+'">'+h(item.operatorName||'未知')+'</td>'+
+                    '<td class="operation-cell" title="'+h(item.operation||'')+'"><span class="cell-ellipsis">'+h(item.operation||'')+'</span></td>'+
+                    '<td><div class="params" title="'+h(item.parameters||'')+'">'+h(item.parameters||'')+'</div></td>'+
+                    '<td class="result-cell '+(item.success?'success':'failed')+'">'+(item.success?'成功':'失败')+(item.errorMessage?'：'+h(item.errorMessage):'')+'</td></tr>';
+            }).join(''):'<tr><td colspan="5" style="text-align:center;color:#999;padding:40px">暂无日志</td></tr>';
+        }).catch(function(error){toast(error.message||'日志加载失败');});
+    }
+    loadOperators();
+    resetSearch();
+</script>
+<script src="/js/session-ui.js"></script>
+</body>
+</html>
